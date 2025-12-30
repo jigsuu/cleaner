@@ -325,6 +325,8 @@ function Remove-All {
     Show-Status "Phase 2: Cleaning System Files & Caches..."
     Remove-TempFiles -IsPartOfBatch
     $progressBar.PerformStep()
+    Remove-TempFiles2 -IsPartOfBatch
+    $progressBar.PerformStep()
     Remove-CpuCaches -IsPartOfBatch
     $progressBar.PerformStep()
     Remove-PrintSpooler -IsPartOfBatch 
@@ -349,17 +351,7 @@ function Remove-All {
     Show-Status "Phase 4: Cleaning Registry & History..."
     Remove-FormHistory -IsPartOfBatch
     $progressBar.PerformStep()
-    Invoke-ForensicBypass -IsPartOfBatch # This is the most aggressive function
-    $progressBar.PerformStep()
-    Invoke-AntiForensics -IsPartOfBatch
-    $progressBar.PerformStep()
-    Remove-NirSoftTraces -IsPartOfBatch
-    $progressBar.PerformStep()
-    Remove-OSForensicsLogs -IsPartOfBatch
-    $progressBar.PerformStep()
     Remove-XboxDeep -IsPartOfBatch
-    $progressBar.PerformStep()
-    Remove-DefenderHistory -IsPartOfBatch
     $progressBar.PerformStep()
 
     # Phase 5: Network, Memory & Power
@@ -892,11 +884,11 @@ function Remove-RegistryTraces {
         # --- Shell Bags ---
         "HKCU\Software\Microsoft\Windows\Shell\BagMRU",
         "HKCU\Software\Microsoft\Windows\Shell\Bags",
+        "HKCU\Software\Microsoft\Windows\Shell\MuiCache",
         "HKCU\Software\Classes\Wow6432Node\Local Settings\Software\Microsoft\Windows\Shell\BagMRU",
         "HKCU\Software\Classes\Wow6432Node\Local Settings\Software\Microsoft\Windows\Shell\Bags",
         "HKCR\Installer\Products",
         "HKCU\Software\Classes\Local Settings\Software\Microsoft\Windows\Shell\BagMRU",
-        "HKCU\Software\Classes\Local Settings\Software\Microsoft\Windows\Shell\BagMRU\*",
         "HKCU\Software\Classes\Local Settings\Software\Microsoft\Windows\Shell\Bags",
         "HKCU\Software\Classes\Local Settings\Software\Microsoft\Windows\Shell\MuiCache",
         "HKCU\Software\Classes\LocalSettings\MrtCache",
@@ -918,7 +910,6 @@ function Remove-RegistryTraces {
         "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Applets\Wordpad\Recent File List",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
-        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Accent",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\Start_TrackDocs",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\Start_TrackProgs",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\CLSID",
@@ -927,6 +918,7 @@ function Remove-RegistryTraces {
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\ComDlg32\FirstFolder",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\ComDlg32\LastVisitedPidlMRU",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\ComDlg32\LastVisitedPidlMRULegacy",
+        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\ComDlg32\OpenSaveMRU",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\ComDlg32\OpenSavePidlMRU",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\FeatureUsage\AppLaunch",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\FeatureUsage\AppSwitched",
@@ -935,7 +927,6 @@ function Remove-RegistryTraces {
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MenuOrder",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\RecentDocs",
-        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\RecentDocs\",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\RunMRU",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StartPage",
@@ -943,23 +934,20 @@ function Remove-RegistryTraces {
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StreamMRU",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Streams",
+        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement",
+        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\VirtualDesktops",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\TrayNotify",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\TypedPaths",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\UserAssist",
-        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders",
-        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects",
-        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\WordWheelQuery",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Group Policy\History",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\5.0\Cache",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Connections",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap",
-        "HKCU\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Privacy",
-        "HKCU\Software\Microsoft\Windows\CurrentVersion\PushNotifications",
+        "HKCU\Software\Microsoft\Windows\CurrentVersion\Search\JumplistData",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Search\RecentApps",
-        "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
         "HKCU\Software\Microsoft\Windows\DWM",
         "HKCU\Software\Microsoft\Windows\Windows Error Reporting",
         "HKCU\Software\WinRAR\ArcHistory",
@@ -982,6 +970,8 @@ function Remove-RegistryTraces {
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Application\Index\PackageAndPackageRelativeApplicationId\181^App",
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\ApplicationUser\Data\ac",
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\ApplicationUser\Data\ad",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\ApplicationUser\Index\UserAndApplication\3^93",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\ApplicationUser\Index\UserAndApplication\4^93",
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\UserAndApplication\3^93",
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\UserAndApplication\4^93",
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Package\Data\180",
@@ -992,6 +982,12 @@ function Remove-RegistryTraces {
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Package\Index\PackageFullName\Microsoft.XboxGameOverlay_1.41.24001.0_neutral_~_8wekyb3d8bbwe",
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Package\Index\PackageFullName\Microsoft.XboxGameOverlay_1.41.24001.0_x64__8wekyb3d8bbwe",
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Data\1a80",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Application\Index\PackageAndPackageRelativeApplicationId\181^App\93",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Application\Index\PackageAndPackageRelativeApplicationId\181^App",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\ApplicationUser\Index\UserAndApplication\4^93\ad",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\ApplicationUser\Index\UserAndApplication\3^93",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\ApplicationUser\Index\UserAndApplication\3^93\ac",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\ApplicationUser\Index\UserAndApplication\4^93",
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Data\1a81",
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Data\1a82",
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Data\1a83",
@@ -1004,6 +1000,22 @@ function Remove-RegistryTraces {
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Index\UserAndPackage\4^180",
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Index\UserAndPackage\4^181",
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Index\UserAndPackage\4^182",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Index\User\3\1a80",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Index\User\3\1a81",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Index\User\3\1a82",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Index\User\4\1a83",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Index\User\4\1a84",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Index\UserAndPackage\3^180",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Index\UserAndPackage\3^180\1a80",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Index\UserAndPackage\3^181",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Index\UserAndPackage\3^181\1a81",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Index\UserAndPackage\3^182",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Index\UserAndPackage\3^182\1a82",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Index\UserAndPackage\4^180",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Index\UserAndPackage\4^180\1a83",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Index\UserAndPackage\4^181",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Index\UserAndPackage\4^181\1a84",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Package\Index\PackageFamily\4e\180",
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Applications\Microsoft.XboxGameOverlay_1.41.24001.0_neutral_~_8wekyb3d8bbwe",
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\S-1-5-21-2532382528-581214834-2534474248-1001\Microsoft.XboxGameOverlay_1.41.24001.0_neutral_~_8wekyb3d8bbwe",
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run",
@@ -1012,9 +1024,9 @@ function Remove-RegistryTraces {
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce",
         "HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting",
+        "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options",
+        "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SilentProcessExit",
         "HKLM\SOFTWARE\Microsoft\WindowsNT\CurrentVersion\VolatileNotifications",
-        "HKLM\SOFTWARE\WOW6432Node\Google\Update\UsageStats\Daily\Counts",
-        "HKLM\SOFTWARE\WOW6432Node\Microsoft\SecurityManager\CapAuthz\ApplicationsEx\Microsoft.XboxGameOverlay_1.41.24001.0_x64__8wekyb3d8bbwe",
         "HKLM\SYSTEM\CurrentControlSet\Control\hivelist",
         "HKLM\SYSTEM\CurrentControlSet\Control\Print\Printers",
         "HKLM\SYSTEM\CurrentControlSet\Services\LanmanServer\Shares",
@@ -1035,14 +1047,19 @@ function Remove-RegistryTraces {
         "HKU\S-1-5-18\Software\Policies\Microsoft\SystemCertificates\TrustedPublisher\Certificates",
         "HKU\S-1-5-18\Software\Policies\Microsoft\SystemCertificates\TrustedPublisher\CRLs",
         "HKU\S-1-5-18\Software\Policies\Microsoft\SystemCertificates\TrustedPublisher\CTLs",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Classes\LocalSettings\MrtCache",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Microsoft\InternetExplorer\LowRegistry\Audio\PolicyConfig\PropertyStore\5e4eddc4_0",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:0000000000020552",
+        "HKCU\Software\Classes\Local Settings\MrtCache\C:%5CProgram Files%5CWindowsApps%5CMicrosoft.XboxGamingOverlay_2.26.28001.0_x64__8wekyb3d8bbwe%5Cmicrosoft.system.package.metadata%5CS-1-5-21-2532382528-581214834-2534474248-1001-MergedResources-2.pri",
+        "HKLM\SYSTEM\ControlSet001\Services\EasyAntiCheat",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Application\Data\93",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Data\1a80"
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Data\1a81"
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Data\1a82"
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Data\1a83"
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\PackageUser\Data\1a84"
+        "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Microsoft\Windows\CurrentVersion\Explorer\Streams\0",
         "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000000205B6",
         "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000000403D6",
         "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000000405DE",
         "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:0000000000060286",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000000703C4",
         "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:000000000009042E",
         "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000000A03B4",
         "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000000A0430",
@@ -1062,88 +1079,8 @@ function Remove-RegistryTraces {
         "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000001703E6",
         "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:0000000000170440",
         "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000001704FC",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\*",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\VirtualDesktops",
         "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Microsoft\Windows\CurrentVersion\Explorer\StreamMRU",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Microsoft\Windows\CurrentVersion\Explorer\Streams\0",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Microsoft\Windows\CurrentVersion\Explorer\UserAssist{CEBFF5CD-ACE2-4F4F-9178-9926F41749EA}\Count",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Microsoft\Windows\CurrentVersion\Search\JumplistData",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\System\GameConfigStore\Children\03ce6902-ff58-41de-ab92-36fcaf27a580",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\System\GameConfigStore\Parents\fd13f746e7d2d69760b017363f621255c9b49ac8",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1001_Classes\LocalSettings\MrtCache",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Classes\LocalSettings\MrtCache",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\InternetExplorer\LowRegistry\Audio\PolicyConfig\PropertyStore\5e4eddc4_0",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:0000000000020552",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000000205B6",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000000403D6",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000000405DE",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:0000000000060286",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000000703C4",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:000000000009042E",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000000A03B4",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000000A0430",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000000B0532",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000000B05D6",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000000C0430",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000000C0586",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000000E03D2",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000000E0406",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:0000000000100430",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000001103EE",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:000000000011041E",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:000000000012047E",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000001303EE",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000001304F2",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:000000000014041E",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000001703E6",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:0000000000170440",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\W32:00000000001704FC",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\ApplicationViewManagement\*",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\1\VirtualDesktops",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\StreamMRU",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\Streams\0",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Explorer\UserAssist{CEBFF5CD-ACE2-4F4F-9178-9926F41749EA}\Count",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\Software\Microsoft\Windows\CurrentVersion\Search\JumplistData",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000\System\GameConfigStore\Children\03ce6902-ff58-41de-ab92-36fcaf27a580",
-        "HKU\S-1-5-21-2532382528-581214834-2534474248-1000_Classes\LocalSettings\MrtCache",
-        "HKU\S-1-5-18\Software\Microsoft\SystemCertificates\TrustedPublisher",
-        "HKU\S-1-5-18\Software\Microsoft\SystemCertificates\TrustedPublisher\Certificates",
-        "HKU\S-1-5-18\Software\Microsoft\SystemCertificates\TrustedPublisher\CRLs",
-        "HKU\S-1-5-18\Software\Microsoft\SystemCertificates\TrustedPublisher\CTLs",
-        "HKU\S-1-5-18\Software\Policies\Microsoft\SystemCertificates\TrustedPublisher",
-        "HKU\S-1-5-18\Software\Policies\Microsoft\SystemCertificates\TrustedPublisher\Certificates",
-        "HKU\S-1-5-18\Software\Policies\Microsoft\SystemCertificates\TrustedPublisher\CRLs",
-        "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SPP\Clients",
-        "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\Profiles",
-        "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\Signatures\Unmanaged",
-        "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\UserProfileEngagement",
-        "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\Signatures\Managed",
-        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Products",
-        "HKLM\SOFTWARE\Classes\Installer\Products",
-        "HKCR\Installer\Products",
-        "HKCR\Applications",
-        "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ApplicationAssociationToasts",
-        "HKCR\TypeLib",
-        "HKCR\Interface",
-        "HKCR\CLSID",
-        "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts",
-        "HKCU\Software\Microsoft\Search Assistant\ACMru",
-        "HKLM\SOFTWARE\Microsoft\Windows Search\VolumeInfoCache",
-        "HKEY_USERS\S-1-5-21-4140603452-1932478776-168934769-1003\SOFTWARE\WinRAR\DialogEditHistory\FindNames",
-        "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FeatureUsage\AppSwitched",
-        "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Applets\Wordpad\Recent File List",
-        "HKU\S-1-5-18\Software\Policies\Microsoft\SystemCertificates\TrustedPublisher\CTLs"
-        # --- Deeper Forensic Paths ---
-        # --- Deeper Forensic & Anti-Cheat Paths ---
-        "HKLM\SYSTEM\CurrentControlSet\Services", # Removes traces of uninstalled drivers/services
-        "HKLM\SYSTEM\CurrentControlSet\Enum\SWD\PRINTENUM", # Printer device history
-        "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Drivers32", # Legacy driver info
-        "HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows NT\CurrentVersion\Drivers32",
-        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
-        "HKLM\SYSTEM\CurrentControlSet\Control\Class", # Device class installations
-        "HKLM\SYSTEM\CurrentControlSet\Control\PnP", # Plug and Play history
-        "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options", # Can be used to debug/hook processes
-        "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SilentProcessExit", # Process exit monitoring
+        "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Classes\Local Settings\MrtCache\C:%5CProgram Files%5CWindowsApps%5CMicrosoft.XboxGamingOverlay_2.26.28001.0_x64__8wekyb3d8bbwe%5Cmicrosoft.system.package.metadata%5CS-1-5-21-2532382528-581214834-2534474248-1001-MergedResources-2.pri",
         "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\AppCompatCache", # Shimcache
         "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\AppCompatibility", # AppCompat DB
         "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags", # AppCompat Flags
@@ -1151,88 +1088,10 @@ function Remove-RegistryTraces {
         "HKLM\SYSTEM\CurrentControlSet\Control\TimeZoneInformation",
         "HKLM\SYSTEM\MountedDevices",
         "HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces",
-        "HKLM\SYSTEM\CurrentControlSet\Control\Windows", # Contains ShutdownTime
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\UserAssist\{5E6AB780-7743-11CF-A12B-00AA004AE837}",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\UserAssist\{75048700-EF1F-11D0-9888-006097DEACF9}",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\ComDlg32\OpenSavePidlMRU",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\ComDlg32\OpenSaveMRU",
-        # --- Even Deeper Forensic Paths ---
-        "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\UserList",
-        "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList",
-        "HKLM\SYSTEM\CurrentControlSet\Services\Wlansvc\Parameters\Profiles",
-        "HKLM\SYSTEM\CurrentControlSet\Control\DeviceClasses",
-        "HKCU\Software\Classes\Local Settings\Software\Microsoft\Windows\Shell\Bags",
-        "HKCU\Software\Classes\Wow6432Node\Local Settings\Software\Microsoft\Windows\Shell\Bags",
-        # --- Additional Forensic Paths ---
-        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\FeatureUsage\AppLaunch",
-        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\FeatureUsage\ShowJumpView",
-        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband",
-        # --- Advanced Anti-Cheat & Forensic Paths ---
-        "HKLM\SOFTWARE\Microsoft\Rpc", # Remote Procedure Call history
-        "HKLM\SOFTWARE\Classes\AppID", # DCOM application identifiers
-        "HKLM\SOFTWARE\Classes\WOW6432Node\AppID",
-        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\ShellCompatibility\Objects", # Shell object compatibility
-        "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\KnownDLLs", # Known system DLLs, can be checked for modifications
-        "HKLM\SYSTEM\CurrentControlSet\Control\Lsa\Security Packages", # LSA security packages
-        "HKLM\SYSTEM\CurrentControlSet\Services\EventLog\Application", # Application event log sources
-        "HKLM\SYSTEM\CurrentControlSet\Services\EventLog\Security", # Security event log sources
-        "HKLM\SYSTEM\CurrentControlSet\Services\EventLog\System", # System event log sources
-        # --- Specific Cheat Keys ---
-        "HKCU\Software\Keyser",
-        "HKCU\Software\KeyserCheats",
-        "HKCU\Software\Macho",
-        "HKCU\Software\MachoCheats",
-        "HKCU\Software\MachoMenu",
-        "HKCU\Software\Susano",
-        "HKCU\Software\SusanoCheats",
-        "HKCU\Software\SusanoMenu",
-        "HKLM\SOFTWARE\Keyser",
-        "HKLM\SOFTWARE\Macho",
-        "HKLM\SOFTWARE\Susano",
-        "HKLM\SOFTWARE\WOW6432Node\Keyser",
-        "HKLM\SOFTWARE\WOW6432Node\Macho",
-        "HKLM\SOFTWARE\WOW6432Node\Susano",
-        # --- Enhanced FiveM Cheat Keys ---
-        "HKCU\Software\Eulen",
-        "HKCU\Software\RedEngine",
-        "HKCU\Software\Skript",
-        "HKCU\Software\Desudo",
-        "HKCU\Software\Hurt",
-        "HKCU\Software\Lumia",
-        "HKCU\Software\HamMafia",
-        "HKCU\Software\Brutan",
-        "HKCU\Software\Fallout",
-        "HKCU\Software\Dopamine",
-        "HKCU\Software\Absolute",
-        "HKCU\Software\Citadel",
-        "HKCU\Software\Global-Hack",
-        "HKCU\Software\Tz Project",
-        "HKCU\Software\FiveM-Cheats",
-        "HKCU\Software\CK-Lua",
-        "HKCU\Software\Fallen",
-        "HKCU\Software\GodMode",
-        "HKCU\Software\Lynx",
-        "HKCU\Software\Tiago",
-        "HKCU\Software\WaterMalone",
-        "HKCU\Software\X-Force",
-        "HKCU\Software\dopamine_v2",
-        "HKCU\Software\G-Hack",
-        "HKLM\SOFTWARE\Eulen",
-        "HKLM\SOFTWARE\RedEngine",
-        "HKLM\SOFTWARE\Skript",
-        "HKLM\SOFTWARE\WOW6432Node\Eulen",
-        "HKLM\SOFTWARE\WOW6432Node\RedEngine",
-        # --- Additional Application Logging & Execution Artifacts (Safe) ---
-        "HKCU\Software\Microsoft\Direct3D\MostRecentApplication",
-        "HKCU\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\TrayNotify",
-        "HKCU\Software\Microsoft\Windows\CurrentVersion\UFH\SHC",
-        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Map Network Drive MRU",
-        "HKCU\Software\Microsoft\Windows\CurrentVersion\Applets\Paint\Recent File List",
-        "HKCU\Software\Microsoft\MediaPlayer\Player\RecentFileList",
-        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StartPage2",
-        "HKCU\Software\7-Zip\Compression",
-        "HKCU\Software\7-Zip\Extraction",
-        "HKCU\Software\7-Zip\FM",
         "HKCU\Software\VideoLAN\VLC\mrulist",
         # --- Enhanced Executed Files & Inventory Artifacts ---
         "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Compatibility Assistant\Store",
@@ -1241,22 +1100,16 @@ function Remove-RegistryTraces {
         "HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Compatibility Assistant\Store",
         "HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers",
         "HKCU\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\ProgramTelemetry",
-        "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\AppCompatCache",
-        "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\AppCompatibility",
-        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches",
-        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Reliability",
-        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\Folders",
-        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData",
-        "HKCU\Software\Microsoft\Windows\CurrentVersion\UFH\ELC",
-        "HKCU\Software\Microsoft\Windows\CurrentVersion\Search\History",
-        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Application\Data",
-        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Package\Data"
+        "HKU\S-1-5-21-2175535664-4285590767-3100322859-1000_Classes\Local Settings\Software\Microsoft\Windows\Shell\BagMRU",
+        "HKU\S-1-5-21-2175535664-4285590767-3100322859-1000_Classes\Local Settings\Software\Microsoft\Windows\Shell\MuiCache"
     )
 
 
     foreach (`$templateKey in `$regKeys) {
-        # Replace the placeholder SID and HKCU with the actual current user's SID hive
+        # Replace HKCU with the current user's SID hive path
         `$keyPath = `$templateKey.Replace('HKCU\', "HKU\`$currentUserSid\")
+        # Also replace the hardcoded SID from the provided lists with the current user's SID
+        `$keyPath = `$keyPath.Replace('S-1-5-21-2532382528-581214834-2534474248-1001', `$currentUserSid)
         
         if (Test-Path -Path `$keyPath) {
             try {
@@ -1458,43 +1311,35 @@ function Remove-TempFiles {
     # This list is deduplicated and expanded with more forensic artifact locations.
     # Using environment variables directly inside the here-string.
     `$locations = @(
-        # Standard Temp Locations
-        "`$env:TEMP", "`$env:SystemRoot\Temp", "`$env:LOCALAPPDATA\Temp",
-        # Crash Dumps and Error Reporting
+        "C:\Windows\Temp",
+        "C:\Windows\Prefetch",
+        "$env:TEMP", "`$env:SystemRoot\Temp", "`$env:LOCALAPPDATA\Temp",
+        "$env:TEMP",
+        "C:\Windows\tempor~1",
+        "C:\Windows\Tmp",
+        "C:\Windows\History",
+        "C:\Windows\Cookies",
+        "C:\Windows\Recent",
+        "C:\Windows\Spool\Printers",
         "`$env:LOCALAPPDATA\CrashDumps", "`$env:ProgramData\Microsoft\Windows\WER", "`$env:LOCALAPPDATA\Microsoft\Windows\WER",
         "`$env:SystemRoot\Minidump", "`$env:SystemRoot\LiveKernelReports",
-        # Recent Files and Activity
         "`$env:APPDATA\Microsoft\Windows\Recent", "`$env:USERPROFILE\Recent", "`$env:APPDATA\Microsoft\Windows\Recent\AutomaticDestinations",
         "`$env:APPDATA\Microsoft\Windows\Recent\CustomDestinations",
         "`$env:APPDATA\Microsoft\Office\Recent", # MS Office recent files
         "`$env:LOCALAPPDATA\Packages\Microsoft.Windows.Photos_8wekyb3d8bbwe\LocalState",
         "`$env:LOCALAPPDATA\Packages\Microsoft.MicrosoftStickyNotes_8wekyb3d8bbwe\LocalState",
-        # Windows Timeline and Activity Cache
-        "`$env:LOCALAPPDATA\ConnectedDevicesPlatform",
-        "`$env:LOCALAPPDATA\Microsoft\Windows\Notifications",
-        "`$env:LOCALAPPDATA\Microsoft\Windows\DeliveryOptimization\Logs",
-        # Browser and Internet Caches
-        "`$env:LOCALAPPDATA\Microsoft\Windows\INetCache", "`$env:LOCALAPPDATA\Microsoft\Windows\WebCache", "`$env:LOCALAPPDATA\Microsoft\Windows\INetCookies",
         # System Caches
         "`$env:LOCALAPPDATA\Microsoft\Windows\Caches", "`$env:SystemRoot\System32\FxsTmp", "`$env:SystemRoot\ServiceProfiles\LocalService\AppData\Local\FontCache",
         "`$env:LOCALAPPDATA\Microsoft\Windows\Explorer",
         # Prefetch and AppCompat
         "`$env:SystemRoot\Prefetch", "`$env:SystemRoot\appcompat\Programs", "`$env:LOCALAPPDATA\Microsoft\Windows\AppCompat",
-        # WMI, SleepStudy, and Software Distribution
-        "`$env:SystemRoot\System32\wbem\Repository", "`$env:SystemRoot\System32\SleepStudy", "`$env:SystemRoot\SoftwareDistribution\Download",
-        "`$env:SystemRoot\SoftwareDistribution\DataStore\Logs",
         # Search and Defender
         "`$env:ProgramData\Microsoft\Search\Data\Applications\Windows", "`$env:ProgramData\Microsoft\Search\Data\Temp",
         "`$env:ProgramData\Microsoft\Windows Defender\Support", "`$env:ProgramData\Microsoft\Windows Defender\Scans\History\Service",
-        # Diagnostic and Telemetry Data
-        "`$env:ProgramData\Microsoft\Diagnosis", "`$env:ProgramData\Microsoft\DiagnosticLogCSP", "`$env:ProgramData\Microsoft\Network\Downloader",
-        "`$env:ProgramData\Microsoft\Windows\Power Efficiency Diagnostics", "`$env:SystemDrive\Windows\System32\WDI\LogFiles\StartupInfo",
-        "`$env:SystemDrive\Windows\System32\LogFiles\WMI\RtBackup",
         # Cryptnet and other user-specific caches
         "`$env:USERPROFILE\AppData\LocalLow\Microsoft\CryptnetUrlCache\MetaData", "`$env:USERPROFILE\AppData\LocalLow\Microsoft\CryptnetUrlCache\Content",
         "`$env:LOCALAPPDATA\Microsoft\TokenBroker\Cache", # UWP App Authentication Token Cache
         "`$env:LOCALAPPDATA\Microsoft\Windows\GameExplorer", # Game Explorer Cache
-        "`$env:LOCALAPPDATA\Microsoft\Feeds Cache", # Windows Feeds Cache
         # Event Logs (brute force)
         "`$env:SystemRoot\System32\winevt\Logs",
         # SRUM Database (System Resource Usage Monitor) - Forensic goldmine
@@ -1506,98 +1351,6 @@ function Remove-TempFiles {
         "`$env:ProgramData\Microsoft\Windows\AppRepository",
         "`$env:ProgramData\Microsoft\Windows\AppReadiness",
         "`$env:SystemRoot\Panther",
-        # User-added paths & Anti-Forensics
-        "`$env:PUBLIC\Shared Files",
-        "`$env:PUBLIC\Libraries",
-        "`$env:LOCALAPPDATA\Microsoft\Feeds",
-        "`$env:ProgramData\Microsoft\DataMart\PaidWiFi\Rules",
-        "`$env:ProgramData\Microsoft\DataMart\PaidWiFi\NetworksCache",
-        "`$env:LOCALAPPDATA\Microsoft\Windows\History", # Expands on IE history
-        "`$env:LOCALAPPDATA\Microsoft\Windows\RADC", # Reliability Analysis Diagnostics
-        "`$env:LOCALAPPDATA\Microsoft\CLR_v4.0\UsageLogs", # .NET Framework Usage Logs
-        "`$env:LOCALAPPDATA\Microsoft\CLR_v4.0_32\UsageLogs", # .NET Framework Usage Logs (32-bit)
-        "`$env:LOCALAPPDATA\Speech Graphics\Carnival",
-        # --- Deeper Forensic File Paths ---
-        "`$env:LOCALAPPDATA\Microsoft\F12\Cache\DiagnosticDataViewer",
-        "`$env:LOCALAPPDATA\Packages\Microsoft.Windows.Cortana_cw5n1h2txyewy\LocalState\DeviceSearchCache",
-        "`$env:SystemRoot\System32\LogFiles\HTTPERR", # HTTP.sys error logs
-        "`$env:LOCALAPPDATA\Microsoft\WindowsApps", # Stubs for store apps
-        "`$env:SystemRoot\System32\LogFiles\WUDF", # Windows User-Mode Driver Framework logs
-        # --- Anti-Cheat Specific File Paths ---
-        "`$env:ProgramData\EasyAntiCheat", # Common anti-cheat service
-        "`$env:ProgramData\BattlEye", # Common anti-cheat service
-        "`$env:LOCALAPPDATA\Valorant\Saved\Logs", # Valorant/Riot Vanguard logs
-        "`$env:ProgramData\Riot Games\Riot Client\Logs", # Riot Client logs
-        "`$env:USERPROFILE\Documents\Steam", # Some games store configs here
-        "`$env:SystemRoot\System32\LogFiles\Firewall", # Windows Firewall log
-        # --- Additional Temp & Log Locations ---
-        "`$env:LOCALAPPDATA\SquirrelTemp",
-        "`$env:LOCALAPPDATA\Microsoft\Terminal Server Client\Cache",
-        "`$env:APPDATA\Sun\Java\Deployment\cache",
-        "`$env:USERPROFILE\.cache",
-        "`$env:SystemRoot\Logs\CBS",
-        "`$env:SystemRoot\Logs\DISM",
-        "`$env:SystemRoot\System32\LogFiles\Scm",
-        "`$env:LOCALAPPDATA\Microsoft\Office\16.0\WebServiceCache",
-        "`$env:LOCALAPPDATA\Publishers",
-        "`$env:SystemRoot\System32\LogFiles\WMI",
-        # --- Application Artifacts & Logging ---
-        "`$env:LOCALAPPDATA\Microsoft\Windows\ActionCenter",
-        "`$env:LOCALAPPDATA\Microsoft\Windows\CloudAPCache",
-        "`$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Code Cache",
-        "`$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Code Cache",
-        "`$env:LOCALAPPDATA\Temp\Adobe",
-        "`$env:APPDATA\Adobe\Common\Media Cache Files",
-        "`$env:APPDATA\Adobe\Common\Media Cache",
-        "`$env:APPDATA\Code\Cache",
-        "`$env:APPDATA\Code\CachedData",
-        "`$env:APPDATA\Code\User\workspaceStorage",
-        "`$env:LOCALAPPDATA\pip\cache",
-        "`$env:LOCALAPPDATA\UnrealEngine",
-        "`$env:LOCALAPPDATA\Unity\cache",
-        "`$env:SystemRoot\System32\LogFiles\Sum",
-        "`$env:SystemRoot\System32\LogFiles\Fax",
-        "`$env:SystemRoot\System32\LogFiles\Srt",
-        "`$env:SystemRoot\System32\LogFiles\Setup",
-        "`$env:SystemRoot\Logs\WindowsUpdate",
-        "`$env:LOCALAPPDATA\Microsoft\Windows\RoamingTiles",
-        "`$env:LOCALAPPDATA\Microsoft\OneDrive\logs",
-        "`$env:LOCALAPPDATA\Microsoft\OneDrive\setup\logs",
-        "`$env:LOCALAPPDATA\WebEx\logs",
-        # --- Enhanced Cheat Traces ---
-        "`$env:LOCALAPPDATA\D3DSCache",
-        "`$env:LOCALAPPDATA\NVIDIA\GLCache",
-        "`$env:LOCALAPPDATA\AMD\DxCache",
-        "`$env:LOCALAPPDATA\AMD\GLCache",
-        "`$env:ProgramData\NVIDIA Corporation\NV_Cache",
-        "`$env:SystemRoot\System32\config\systemprofile\AppData\Local\Microsoft\Windows\INetCache",
-        "`$env:SystemRoot\ServiceProfiles\LocalService\AppData\Local\Temp",
-        "`$env:SystemRoot\ServiceProfiles\NetworkService\AppData\Local\Temp",
-        "`$env:USERPROFILE\AppData\LocalLow\Sun\Java\Deployment\cache",
-        "`$env:USERPROFILE\Tracing",
-        "`$env:SystemRoot\System32\LogFiles\Ait",
-        "`$env:ProgramData\Microsoft\Windows\AppCompatibility\Ait",
-        "`$env:LOCALAPPDATA\Microsoft\DirectX Shader Cache",
-        "`$env:ProgramData\USOPrivate",
-        "`$env:ProgramData\USOShared",
-        "`$env:SystemDrive\Config.Msi",
-        "`$env:ProgramData\Microsoft\Windows\WER\ReportQueue",
-        "`$env:ProgramData\Microsoft\Windows\WER\ReportArchive",
-        "`$env:LOCALAPPDATA\Microsoft\Windows\WER\ReportQueue",
-        "`$env:LOCALAPPDATA\Microsoft\Windows\WER\ReportArchive",
-        # --- Enhanced Executed Files & Inventory Artifacts ---
-        "`$env:SystemRoot\System32\LogFiles\Inventory",
-        "`$env:LOCALAPPDATA\Microsoft\Windows\PCA",
-        "`$env:SystemRoot\ServiceProfiles\LocalService\AppData\Local\Microsoft\Windows\DeliveryOptimization",
-        "`$env:SystemRoot\System32\config\systemprofile\AppData\Local\Microsoft\Windows\History",
-        "`$env:SystemRoot\System32\config\systemprofile\AppData\Local\Microsoft\Windows\INetCookies",
-        "`$env:SystemRoot\System32\config\systemprofile\AppData\Local\Microsoft\Windows\WebCache",
-        "`$env:SystemRoot\System32\LogFiles\CloudExperienceHost",
-        "`$env:LOCALAPPDATA\Microsoft\Windows\SettingSync",
-        "`$env:LOCALAPPDATA\Packages\Microsoft.Windows.Search_cw5n1h2txyewy\LocalState\DeviceSearchCache",
-        "`$env:ProgramData\Microsoft\Windows\DeviceMetadataCache",
-        "`$env:LOCALAPPDATA\Microsoft\Windows\Shell",
-        "`$env:SystemRoot\appcompat\Programs\Install"
     )
 
     foreach (`$loc in (`$locations | Select-Object -Unique)) {
@@ -1614,8 +1367,6 @@ function Remove-TempFiles {
 
     # Special handling for recursive wildcard paths that Remove-Item doesn't handle directly
     `$recursivePatterns = @(
-        "`$env:SystemRoot\System32\spp\store\**\data.dat",
-        "`$env:SystemRoot\System32\spp\store\**\tokens.dat"
     )
     foreach (`$pattern in `$recursivePatterns) {
         `$basePath = `$pattern.Split('\*\*')[0]
@@ -1627,8 +1378,6 @@ function Remove-TempFiles {
 
     # Clean protected log files
     `$logPaths = @(
-        "`$env:windir\WindowsUpdate.log",
-        "`$env:SystemRoot\inf\setupapi.dev.log"
     )
     foreach (`$path in `$logPaths) {
         if (Test-Path -Path `$path) {
@@ -1661,6 +1410,10 @@ function Remove-TempFiles {
     Get-ChildItem -Path "`$env:SystemDrive\" -Filter "*.gid" -File -Force | Remove-Item -Force
     Get-ChildItem -Path "`$env:SystemDrive\" -Filter "*.chk" -File -Force | Remove-Item -Force
 
+    # Integrated from Untitled-1.ps1
+    Remove-Item -Path "C:\Windows\ff*.tmp" -Force
+    Remove-Item -Path "C:\WIN386.SWP" -Force
+
 "@
     Invoke-CommandAsTrustedInstaller -CommandToRun $command
 
@@ -1673,8 +1426,158 @@ function Remove-TempFiles {
     }
 }
 
+function Remove-TempFiles2 {
+    param([switch]$IsPartOfBatch)
+    if (-not $IsPartOfBatch) { Disable-Buttons }
+    Show-Status "Cleaning additional temporary files (Bypassing restrictions)..."
+    
+    $command = @"
+    `$ErrorActionPreference = 'SilentlyContinue'
+    
+    `$paths = @(
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\UnrealEngine\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\EpicGamesLauncher\Saved\Logs\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\EpicGamesLauncher\Saved\webcache\Service Worker\CacheStorage\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\EpicGamesLauncher\Saved\webcache\GPUCache\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\FortniteGame\Saved\Config\WindowsClient\*",
+        "$env:SystemDrive\Program Files\Epic Games\Fortnite\FortniteGame\PersistentDownloadDir\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\FortniteGame\Saved\LMS\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\FortniteGame\Saved\Cloud\*",
+        "$env:SystemDrive\Recovery\ntuser.sys\*",
+        "$env:SystemDrive\Users\Public\Libraries\collection.dat\*",
+        "$env:SystemDrive\MSOCache\{71230000-00E2-0000-1000-00000000}\Setup.dat\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Windows\WebCache\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Feeds\*",
+        "$env:SystemDrive\ProgramData\Microsoft\DataMart\PaidWiFi\NetworksCache\*",
+        "$env:SystemDrive\ProgramData\Microsoft\DataMart\PaidWiFi\Rules\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Windows\History\History.IE5\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Speech Graphics\Carnival\*",
+        "$env:SystemDrive\ProgramData\Microsoft\Windows\WER\Temp\*",
+        "$env:SystemDrive\Windows\SysWOW64\config\systemprofile\AppData\Local\Microsoft\Windows\INetCache\Content.IE5\*",
+        "$env:SystemDrive\Windows\SysWOW64\config\systemprofile\AppData\Local\Microsoft\Windows\INetCookies\*",
+        "$env:SystemDrive\Windows\SysWOW64\config\systemprofile\AppData\LocalLow\Microsoft\CryptnetUrlCache\MetaData\*",
+        "$env:SystemDrive\Windows\SysWOW64\config\systemprofile\AppData\LocalLow\Microsoft\CryptnetUrlCache\Content\*",
+        "$env:SystemDrive\ProgramData\Epic\EpicGamesLauncher\Data\Manifests\332441564059B197BCE9A18EBB26CE7F.item",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Roaming\Microsoft\Windows\Themes\CachedFiles\*",
+        "$env:SystemDrive\Windows\SysWOW64\config\systemprofile\AppData\Local\Microsoft\Windows\INetCache\*",
+        "$env:SystemDrive\Windows\System32\config\systemprofile\AppData\Local\Microsoft\Windows\WebCache\WebCacheV01.dat\*",
+        "$env:SystemDrive\Windows\System32\config\systemprofile\AppData\Local\Microsoft\Windows\WebCache\WebCacheV01.jfm\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\LocalLow\Microsoft\CryptnetUrlCache\MetaData\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Windows\INetCache\IE\*",
+        "$env:SystemDrive\Windows\Prefetch\*",
+        "$env:SystemDrive\Users\$env:USERNAME\Videos\Captures\desktop.ini\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Packages\Microsoft.Windows.Cortana_cw5n1h2txyewy\AC\AppCache\YVV2MEXU\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Roaming\Microsoft\Windows\Recent\AutomaticDestinations\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Packages\Microsoft.Windows.Cortana_cw5n1h2txyewy\AC\INetCache\*",
+        "$env:SystemDrive\ProgramData\Microsoft\Windows\DeviceMetadataCache\dmrc.idx\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Packages\Microsoft.XboxGamingOverlay_8wekyb3d8bbwe\AC\INetCookies\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Packages\Microsoft.XboxGamingOverlay_8wekyb3d8bbwe\AC\Microsoft\CryptnetUrlCache\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Packages\Microsoft.XboxGamingOverlay_8wekyb3d8bbwe\AC\INetHistory\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Packages\Microsoft.Windows.Cortana_cw5n1h2txyewy\TempState\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Windows\WebCache\WebCacheV01.dat\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\NVIDIA Corporation\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Internet Explorer\CacheStorage\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\AMD\DxCache\*",
+        "$env:SystemDrive\Program Files (x86)\AMD\CNext\CCCSlim\*",
+        "$env:SystemDrive\ProgramData\Microsoft\XboxLive\NSALCache\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\PlaceholderTileLogoFolder\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Temp\*",
+        "$env:SystemDrive\Program Files (x86)\Common Files\BattlEye\BEDaisy.sys\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Google\Chrome\User Data\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Packages\Microsoft.MicrosoftEdge_8wekyb3d8bbwe\AC\MicrosoftEdge\User\Default\Recovery\Active\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Packages\Microsoft.MicrosoftEdge_8wekyb3d8bbwe\AC\#!002\MicrosoftEdge\User\Default\AppCache\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Roaming\Microsoft\Windows\Recent\Autom\*",
+        "$env:SystemDrive\Windows\rescache\_merged\*",
+        "$env:SystemDrive\Users\$env:USERNAME\ntuser.dat.LOG1\*",
+        "$env:SystemDrive\Users\$env:USERNAME\ntuser.dat.LOG2\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\OneDrive\settings\Personal\logUploaderSettings_temp.ini\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\OneDrive\settings\Personal\logUploaderSettings.ini\*",
+        "$env:SystemDrive\Windows\System32\sru\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\OneDrive\logs\Common\DeviceHealthSummaryConfiguration.ini\*",
+        "$env:SystemDrive\Windows\System32\config\systemprofile\AppData\Local\Microsoft\XboxLive\AuthStateCache.dat\*",
+        "$env:SystemDrive\Windows\System32\config\BBI.LOG1\*",
+        "$env:SystemDrive\Windows\System32\config\BBI.LOG2\*",
+        "$env:SystemDrive\Windows\System32\config\DEFAULT.LOG2\*",
+        "$env:SystemDrive\Windows\Logs\MoSetup\UpdateAgent.log\*",
+        "$env:SystemDrive\Windows\SoftwareDistribution\PostRebootEventCache.V2\{323558A6-0300-4C3E-97A0-EDEDFEB96B00}.bin\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Packages\Microsoft.Windows.Cortana_cw5n1h2txyewy\TempState\CortanaUnifiedTileModelCache.dat\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Windows\SettingSync\metastore\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Packages\Microsoft.Windows.Cortana_cw5n1h2txyewy\AppData\Indexed DB\*",
+        "$env:SystemDrive\Windows\System32\LogFiles\WMI\RtBackup\EtwRTGraphicsPerfMonitorSession.etl\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\NVIDIA Corporation\GfeSDK\*",
+        "$env:SystemDrive\Windows\SoftwareDistribution\DataStore\Logs\*",
+        "$env:SystemDrive\Windows\Logs\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Comms\Unistore\data\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Comms\UnistoreDB\USS.jtx\*",
+        "$env:SystemDrive\ProgramData\Microsoft\Windows\AppRepository\Packages\Microsoft.XboxGameOverlay_1.42.4001.0_x64__8wekyb3d8bbwe\ActivationStore.dat\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Packages\Microsoft.SkypeApp_kzf8qxf38zg5c\LocalState\DiagOutputDir\*",
+        "$env:SystemDrive\Windows\ServiceState\EventLog\Data\lastalive0.dat\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Windows\UsrClass.dat.LOG2\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Windows\UsrClass.dat.LOG1\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Windows\INetCache\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Windows\Safety\edge\remote\*",
+        "$env:SystemDrive\Windows\WindowsUpdate.log\*",
+        "$env:SystemDrive\Windows\SoftwareDistribution\DataStore\DataStore.edb\*",
+        "$env:SystemDrive\Windows\SoftwareDistribution\DataStore\Logs\edb.log\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Packages\Microsoft.Windows.Cortana_cw5n1h2txyewy\Settings\settings.dat.LOG1\*",
+        "$env:SystemDrive\ProgramData\Epic\Launcher.manifest",
+        "$env:SystemDrive\ProgramData\Epic\UnrealEngineLauncher\LauncherInstalled.dat",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Temp\c0633b8.tmp",
+        "$env:SystemDrive\Windows\ServiceProfiles\LocalService\AppData\Local\FontCache\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Roaming\Microsoft\Windows\CloudStore\*",
+        "$env:SystemDrive\ProgramData\Microsoft\Diagnosis\EventStore.db-wal\*",
+        "$env:SystemDrive\Windows\System32\perfc009.dat\*",
+        "$env:SystemDrive\Windows\System32\perfh009.dat\*",
+        "$env:SystemDrive\Windows\INF\*",
+        "$env:SystemDrive\Windows\System32\PerfStringBackup.TMP\*",
+        "$env:SystemDrive\Windows\System32\PerfStringBackup.INI\*",
+        "$env:SystemDrive\Windows\System32\wbem\Performance\WmiApRpl.ini\*",
+        "$env:SystemDrive\Windows\TEMP\*",
+        "$env:SystemDrive\Windows\SoftwareDistribution\DataStore\*",
+        "$env:SystemDrive\Windows\System32\WDI\LogFiles\StartupInfo\*",
+        "$env:SystemDrive\Windows\bootstat.dat",
+        "$env:SystemDrive\Windows\ServiceProfiles\NetworkService\AppData\Local\Microsoft\Windows\DeliveryOptimization\Logs\*",
+        "$env:SystemDrive\Windows\ServiceProfiles\NetworkService\AppData\Local\Microsoft\Windows\DeliveryOptimization\State\*",
+        "$env:SystemDrive\Windows\SysWOW64\Gms.log\*",
+        "$env:SystemDrive\Windows\System32\spp\store\2.0\cache\*",
+        "$env:SystemDrive\ProgramData\USOShared\Logs\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Packages\Microsoft.ZuneVideo_8wekyb3d8bbwe\LocalState\Database\anonymous\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Windows\WER\ERC\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Windows\SettingSync\remotemetastore\v1\edb.log\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Windows\SettingSync\metastore\edb.log\*",
+        "$env:SystemDrive\Windows\Logs\CBS\CBS.log\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Comms\Unistore\data\3\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Comms\Unistore\data\temp\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Packages\Microsoft.MicrosoftEdge_8wekyb3d8bbwe\AppData\User\Default\Indexed DB\edb.log\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Windows\SettingSync\metastore\meta.edb\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Roaming\Microsoft\Windows\Recent\AutomaticDestinations\b05132b02959bc64.automaticDestinations-ms\*",
+        "$env:SystemDrive\Windows\appcompat\Programs\Amcache.hve\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Roaming\EasyAntiCheat\*"
+    )
+
+    foreach (`$path in `$paths) {
+        if (Test-Path `$path) {
+            # Attempt to take ownership and grant permissions
+            takeown /f `$path /r /d y | Out-Null
+            icacls `$path /grant administrators:F /t /q | Out-Null
+            Get-ChildItem -Path `$path -Recurse -Force -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
+        }
+    }
+"@
+
+    Invoke-CommandAsTrustedInstaller -CommandToRun $command
+
+    if (-not $IsPartOfBatch) {
+        $completionMessage = "Additional temporary files cleaned (Admin Bypass)."
+        Show-Status $completionMessage "Green"
+        Show-CompletionDialog $completionMessage
+        Enable-Buttons
+    }
+}
+
 function Remove-BrowsingData {
     param([switch]$IsPartOfBatch)
+    
     if (-not $IsPartOfBatch) { Disable-Buttons }
     Show-Status "Cleaning browsing data..."
 
@@ -1725,11 +1628,16 @@ function Remove-UsnJournal {
     $command = 'Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "NtfsDisableLastAccessUpdate" -Value 1 -Type DWord -Force'
     Invoke-CommandAsTrustedInstaller -CommandToRun $command
 
-    # Delete USN Journal
-    Show-Status "Deleting USN Journal for C: drive..."
-    Invoke-Command "fsutil" "usn deletejournal /d C:"
+    # Delete USN Journal for all fixed drives
+    $drives = Get-CimInstance -ClassName Win32_LogicalDisk | Where-Object { $_.DriveType -eq 3 }
+    foreach ($drive in $drives) {
+        $driveLetter = $drive.DeviceID
+        Show-Status "Deleting USN Journal for $driveLetter drive..."
+        Invoke-Command "fsutil" "usn deletejournal /d $driveLetter"
+    }
+
     if (-not $IsPartOfBatch) {
-        $completionMessage = "USN Journal deleted and Last Access Time disabled."
+        $completionMessage = "USN Journal deleted for all drives and Last Access Time disabled."
         Show-Status $completionMessage "Green"
         Show-CompletionDialog $completionMessage
         Enable-Buttons
@@ -2095,7 +2003,7 @@ function Remove-Amcache {
     }
     $amcacheFiles = @(
         "$env:SystemRoot\appcompat\Programs\RecentFileCache.bcf",
-        "$env:SystemRoot\appcompat\Programs\Amcache.hve"
+        "$env:SystemRoot\appcompat\Programs\Amcache.hve",
         "$env:SystemRoot\appcompat\Programs\Amcache.hve.LOG1",
         "$env:SystemRoot\appcompat\Programs\Amcache.hve.LOG2"
     )
@@ -2417,6 +2325,9 @@ function Remove-XboxDeep {
 # 1. Stop all Xbox and Gaming related services
 "GamingServices", "GamingServicesNet", "XblAuthManager", "XblGameSave", "XboxGipSvc", "XboxNetApiSvc" | ForEach-Object {
     Stop-Service -Name `$_ -Force
+    if (`$_ -in @("XblAuthManager", "XblGameSave", "XboxNetApiSvc", "XboxGipSvc")) {
+        & sc.exe delete `$_ | Out-Null
+    }
 }
 
 # 2. Delete Xbox-related AppData packages and files
@@ -2436,27 +2347,43 @@ function Remove-XboxDeep {
 foreach (`$path in (`$appDataPaths | Select-Object -Unique)) {
     Remove-Item -Path `$path -Recurse -Force
 }
+    # Part 2: Define system and registry paths for deletion
+    `$systemPaths = @(
+        "$env:LOCALAPPDATA\Packages\Microsoft.XboxGamingOverlay_8wekyb3d8bbwe",
+        "$env:LOCALAPPDATA\Packages\Microsoft.Xbox.TCUI_8wekyb3d8bbwe",
+        "$env:LOCALAPPDATA\Packages\Microsoft.XboxApp_8wekyb3d8bbwe",
+        "$env:LOCALAPPDATA\Packages\Microsoft.XboxIdentityProvider_*",
+        "$env:LOCALAPPDATA\Packages\Microsoft.GamingApp_*",
+        "$env:LOCALAPPDATA\Packages\Microsoft.GamingServices_*",
+        "$env:LOCALAPPDATA\Packages\Microsoft.XboxSpeechToTextOverlay_*",
+        "$env:ProgramData\Microsoft\XboxLive",
+        "$env:LOCALAPPDATA\Microsoft\XboxLive",
+        "$env:LOCALAPPDATA\Microsoft\GamingServices",
+        "$env:SystemRoot\SoftwareDistribution\EventCache\{BEB0A93F-8B55-4157-AE89-CDF4F261A773}.bin"
+    )
 
 # 3. Delete Xbox-related registry keys
 `$currentUserSid = (Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object -ExpandProperty UserName).Split('\')[1]
 `$userSidObj = New-Object System.Security.Principal.NTAccount(`$currentUserSid)
 `$currentUserSid = `$userSidObj.Translate([System.Security.Principal.SecurityIdentifier]).Value
-
-`$regKeysToDelete = @(
-        "HKCU:\Software\Microsoft\GameBar",
-        "HKCU:\Software\Microsoft\Games",
-        "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR",
-        "HKCU:\Software\Microsoft\XboxLive",
-        "HKCU:\Software\Microsoft\Xbox",
-        "HKCU:\System\GameConfigStore",
-        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Applications\Microsoft.Xbox*",
-        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\`$currentUserSid\Microsoft.Xbox*",
-        "HKLM:\SYSTEM\CurrentControlSet\Services\GamingServices",
-        "HKLM:\SYSTEM\CurrentControlSet\Services\GamingServicesNet",
-        "HKLM:\SYSTEM\CurrentControlSet\Services\XblAuthManager",
-        "HKLM:\SYSTEM\CurrentControlSet\Services\XblGameSave",
-        "HKLM:\SYSTEM\CurrentControlSet\Services\XboxGipSvc",
-        "HKLM:\SYSTEM\CurrentControlSet\Services\XboxNetApiSvc",
+    `$registryPaths = @(
+        "HKCU\Software\Microsoft\GameBar",
+        "HKCU\Software\Microsoft\Games",
+        "HKCU\Software\Microsoft\Windows\CurrentVersion\GameDVR",
+        "HKCU\Software\Microsoft\XboxLive",
+        "HKCU\Software\Microsoft\Xbox",
+        "HKCU\System\GameConfigStore",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Applications\Microsoft.Xbox*",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\`$currentUserSid\Microsoft.Xbox*",
+        "HKLM\SYSTEM\CurrentControlSet\Services\GamingServices",
+        "HKLM\SYSTEM\CurrentControlSet\Services\GamingServicesNet",
+        "HKLM\SYSTEM\CurrentControlSet\Services\XblAuthManager",
+        "HKLM\SYSTEM\CurrentControlSet\Services\XblGameSave",
+        "HKLM\SYSTEM\CurrentControlSet\Services\XboxGipSvc",
+        "HKLM\SYSTEM\CurrentControlSet\Services\XboxNetApiSvc",
+        "HKLM:\SYSTEM\CurrentControlSet\Services\xbgm",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Applications\Microsoft.XboxGameOverlay_1.41.24001.0_neutral_~_8wekyb3d8bbwe",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\`$currentUserSid\Microsoft.XboxGameOverlay_1.41.24001.0_neutral_~_8wekyb3d8bbwe",
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Package\Index\PackageFullName\Microsoft.XboxGameOverlay_1.41.24001.0_neutral_split.scale-100_8wekyb3d8bbwe",
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Package\Index\PackageFullName\Microsoft.XboxGameOverlay_1.41.24001.0_neutral_split.scale-100_8wekyb3d8bbwe\182",
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Package\Index\PackageFullName\Microsoft.XboxGameOverlay_1.41.24001.0_neutral_~_8wekyb3d8bbwe",
@@ -2464,8 +2391,33 @@ foreach (`$path in (`$appDataPaths | Select-Object -Unique)) {
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Package\Index\PackageFullName\Microsoft.XboxGameOverlay_1.41.24001.0_x64__8wekyb3d8bbwe",
         "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Package\Index\PackageFullName\Microsoft.XboxGameOverlay_1.41.24001.0_x64__8wekyb3d8bbwe\181"
     )
-    foreach (`$key in `$regKeysToDelete) {
-        Remove-Item -Path `$key -Recurse -Force
+    foreach (`$key in `$registryPaths) {
+        `$keyPath = `$key.Replace('HKCU\', "HKU\`$currentUserSid\")
+        Remove-Item -Path `$keyPath -Recurse -Force
+    }
+
+    # Part 3: Delete system paths
+    foreach (`$path in (`$systemPaths | Select-Object -Unique)) {
+        Remove-Item -Path `$path -Recurse -Force
+    }
+
+    # 4. Additional Integrated Cleanup
+    Remove-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Services\xbgm" -Recurse -Force
+
+    Disable-ScheduledTask -TaskPath "\Microsoft\XblGameSave\" -TaskName "XblGameSaveTask" -ErrorAction SilentlyContinue
+    Disable-ScheduledTask -TaskPath "\Microsoft\XblGameSave\" -TaskName "XblGameSaveTaskLogon" -ErrorAction SilentlyContinue
+
+    `$hostsPath = Join-Path `$env:windir "System32\drivers\etc\hosts"
+    `$hostsEntries = @(
+        "127.0.0.1 xboxlive.com",
+        "127.0.0.1 user.auth.xboxlive.com",
+        "127.0.0.1 presence-heartbeat.xboxlive.com"
+    )
+    `$currentHosts = Get-Content `$hostsPath -ErrorAction SilentlyContinue
+    foreach (`$entry in `$hostsEntries) {
+        if (`$currentHosts -notcontains `$entry.Split(' ')[1]) {
+            Add-Content -Path `$hostsPath -Value `$entry -Force
+        }
     }
 "@
     Invoke-CommandAsTrustedInstaller -CommandToRun $command
@@ -2659,9 +2611,15 @@ function Reset-DataUsage {
     Invoke-Command "ipconfig" "/flushdns"
 
     # Delete Internet Settings registry keys
+    # Part 1: Clean paths that can be accessed as Admin
     Show-Status "Deleting Internet Settings registry keys..."
     Remove-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Connections" -Recurse -Force -ErrorAction SilentlyContinue
     Remove-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\5.0\Cache" -Recurse -Force -ErrorAction SilentlyContinue
+    $registryPaths = @(
+        "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Connections",
+        "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\5.0\Cache"
+    )
+    $registryPaths | ForEach-Object { if (Test-Path $_) { Remove-Item -Path $_ -Recurse -Force -ErrorAction SilentlyContinue } }
 
     # Delete various diagnostic and error reporting logs
     Show-Status "Deleting diagnostic and WER logs..."
@@ -2669,6 +2627,22 @@ function Reset-DataUsage {
     foreach ($path in $logPathsToDelete) {
         if (Test-Path $path) { Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue }
     }
+
+    # Part 2: Clean paths/services requiring SYSTEM privileges
+    $systemCommand = @"
+        `$ErrorActionPreference = 'SilentlyContinue'
+        # Reset SRUM database
+        Stop-Service -Name "DPS" -Force
+        Remove-Item -Path "`$env:SystemRoot\System32\sru\srudb.dat" -Force
+        Start-Service -Name "DPS"
+"@
+    Show-Status "Resetting SRUM database (requires SYSTEM)..."
+    Invoke-CommandAsTrustedInstaller -CommandToRun $systemCommand
+
+    # Part 3: Run network commands
+    Show-Status "Deleting saved WLAN profiles and flushing DNS..."
+    Invoke-Command "netsh" "wlan delete profile name=* i=*"
+    Invoke-Command "ipconfig" "/flushdns"
 
     if (-not $IsPartOfBatch) {
         $completionMessage = "Network data usage and diagnostics have been reset."
@@ -2969,6 +2943,29 @@ function Remove-BamDamLogs {
         # This function requires SYSTEM privileges to modify the service registry keys.
         $ErrorActionPreference = 'SilentlyContinue'
 
+        # Function to take ownership and grant full control to Administrators
+        function Take-Ownership {
+            param([string]$Key)
+            if (Test-Path $Key) {
+                try {
+                    $acl = Get-Acl -Path $Key
+                    $adminGroup = New-Object System.Security.Principal.NTAccount("Administrators")
+                    $acl.SetOwner($adminGroup)
+                    Set-Acl -Path $Key -AclObject $acl
+                    
+                    $rule = New-Object System.Security.AccessControl.RegistryAccessRule(
+                        $adminGroup,
+                        [System.Security.AccessControl.RegistryRights]::FullControl,
+                        [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit",
+                        [System.Security.AccessControl.PropagationFlags]::None,
+                        [System.Security.AccessControl.AccessControlType]::Allow
+                    )
+                    $acl.SetAccessRule($rule)
+                    Set-Acl -Path $Key -AclObject $acl
+                } catch {}
+            }
+        }
+
         # Stop the services to release registry key locks.
         # DAM is 'Diagnostic Service Host' (DsmSvc), BAM is 'Background Tasks Infrastructure Service' (BrokerInfrastructure)
         Stop-Service -Name "DsmSvc" -Force
@@ -2977,9 +2974,18 @@ function Remove-BamDamLogs {
         # Delete and recreate the UserSettings keys which contain the execution logs for ALL users.
         Remove-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\dam\UserSettings' -Recurse -Force
         New-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\dam\UserSettings' -Force | Out-Null
+        $damPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\dam\UserSettings'
+        $bamPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\bam\UserSettings'
 
         Remove-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\bam\UserSettings' -Recurse -Force
         New-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\bam\UserSettings' -Force | Out-Null
+        Take-Ownership -Key $damPath
+        Remove-Item -Path $damPath -Recurse -Force
+        New-Item -Path $damPath -Force | Out-Null
+
+        Take-Ownership -Key $bamPath
+        Remove-Item -Path $bamPath -Recurse -Force
+        New-Item -Path $bamPath -Force | Out-Null
 
         # Restart the services.
         Start-Service -Name "BrokerInfrastructure"
@@ -2997,7 +3003,25 @@ function Reset-AppRunTime {
  
     $command = {
         # --- Part 1: Clean BAM/DAM activity logs (requires SYSTEM) ---
+        # This function requires SYSTEM privileges to modify service registry keys and protected files.
         $ErrorActionPreference = 'SilentlyContinue'
+
+        # --- Part 1: Clean BAM/DAM activity logs (Registry) ---
+        function Take-Ownership {
+            param([string]$Key)
+            if (Test-Path $Key) {
+                try {
+                    $acl = Get-Acl -Path $Key
+                    $adminGroup = New-Object System.Security.Principal.NTAccount("Administrators")
+                    $acl.SetOwner($adminGroup)
+                    Set-Acl -Path $Key -AclObject $acl
+                    $rule = New-Object System.Security.AccessControl.RegistryAccessRule($adminGroup, [System.Security.AccessControl.RegistryRights]::FullControl, "ContainerInherit, ObjectInherit", "None", "Allow")
+                    $acl.SetAccessRule($rule)
+                    Set-Acl -Path $Key -AclObject $acl
+                } catch {}
+            }
+        }
+
         Stop-Service -Name "DsmSvc" -Force
         Stop-Service -Name "BrokerInfrastructure" -Force
         Remove-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\dam\UserSettings' -Recurse -Force
@@ -3008,12 +3032,31 @@ function Reset-AppRunTime {
         Start-Service -Name "DsmSvc"
 
         # --- Part 2: Reset SRUM database ---
+        $damPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\dam\UserSettings'
+        $bamPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\bam\UserSettings'
+
+        Take-Ownership -Key $damPath
+        Remove-Item -Path $damPath -Recurse -Force
+        New-Item -Path $damPath -Force | Out-Null
+
+        Take-Ownership -Key $bamPath
+        Remove-Item -Path $bamPath -Recurse -Force
+        New-Item -Path $bamPath -Force | Out-Null
+
+        # --- Part 2: Reset SRUM database (File System) ---
         $srumPath = "$env:SystemRoot\System32\sru\srudb.dat"
         if (Test-Path $srumPath) {
             Stop-Service -Name "DPS" -Force -ErrorAction SilentlyContinue
             Remove-Item -Path $srumPath -Force -ErrorAction SilentlyContinue
             Start-Service -Name "DPS" -ErrorAction SilentlyContinue
+            Stop-Service -Name "DPS" -Force
+            Remove-Item -Path $srumPath -Force
+            Start-Service -Name "DPS"
         }
+
+        # Restart services
+        Start-Service -Name "BrokerInfrastructure"
+        Start-Service -Name "DsmSvc"
     }
     Invoke-CommandAsTrustedInstaller -CommandToRun $command
  
@@ -3462,6 +3505,7 @@ $buttons = @(
     @{ Name = 'Registry Traces';  Action = { Remove-RegistryTraces } },
     @{ Name = 'Recent Apps';      Action = { Remove-RecentApps } },
     @{ Name = 'Temp Files';       Action = { Remove-TempFiles } },
+    @{ Name = 'Temp Files 2';     Action = { Remove-TempFiles2 } },
     @{ Name = 'Browsing Data';    Action = { Remove-BrowsingData } },
     @{ Name = 'USN Journal';      Action = { Remove-UsnJournal } },
     @{ Name = 'Delete Shadows';   Action = { Remove-Shadows } },
@@ -3497,14 +3541,13 @@ $buttons = @(
     # Add the new BITS cleaner button
     @{ Name = 'Clean BITS Jobs'; Action = { Remove-BitsJobs } },
     # Add the new high-risk button
-    @{ Name = 'Forensic Bypass'; Action = { Invoke-ForensicBypass } }
+    @{ Name = 'Forensic Bypass'; Action = { Invoke-ForensicBypass } },
     @{ Name = 'Clean BAM/DAM Logs'; Action = { Remove-BamDamLogs } },
     @{ Name = 'Anti-Forensics'; Action = { Invoke-AntiForensics } },
     @{ Name = 'Reset App Runtime'; Action = { Reset-AppRunTime } },
     @{ Name = 'System Restore Points'; Action = { Remove-SystemRestorePoints } },
     @{ Name = 'Disable Telemetry (Deep)'; Action = { Disable-TelemetryDeep } },
     @{ Name = 'Deep Clean Search'; Action = { Remove-WindowsSearchDeep } },
-    @{ Name = 'Flush Memory (svchost)'; Action = { Flush-StandbyCache } }
     @{ Name = 'Flush Memory (svchost)'; Action = { Flush-StandbyCache } },
     @{ Name = 'Deep Clean Last Activity'; Action = { Remove-LastActivityDeep } },
     @{ Name = 'Clean AnyDesk Traces'; Action = { Remove-AnyDeskTraces } },
