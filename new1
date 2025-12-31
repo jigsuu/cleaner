@@ -1491,18 +1491,11 @@ function Remove-TempFiles2 {
         "$env:SystemDrive\Windows\rescache\_merged\*",
         "$env:SystemDrive\Users\$env:USERNAME\ntuser.dat.LOG1\*",
         "$env:SystemDrive\Users\$env:USERNAME\ntuser.dat.LOG2\*",
-        # "$env:SystemDrive\Users\$env:USERNAME\ntuser.dat", # CRITICAL: Do not delete user registry hive
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\OneDrive\settings\Personal\logUploaderSettings_temp.ini",
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\OneDrive\settings\Personal\logUploaderSettings.ini",
         "$env:SystemDrive\Windows\System32\sru\*",
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\OneDrive\logs\Common\DeviceHealthSummaryConfiguration.ini\*",
         "$env:SystemDrive\Windows\System32\config\systemprofile\AppData\Local\Microsoft\XboxLive\AuthStateCache.dat\*",
-        # "$env:SystemDrive\Windows\System32\config\BBI.LOG1", # CRITICAL: Do not delete system registry logs
-        # "$env:SystemDrive\Windows\System32\config\BBI.LOG2",
-        # "$env:SystemDrive\Windows\System32\config\BBI.LOG",
-        # "$env:SystemDrive\Windows\System32\config\DEFAULT.LOG2",
-        # "$env:SystemDrive\Windows\System32\config\DEFAULT.LOG1",
-        # "$env:SystemDrive\Windows\System32\config\DEFAULT.LOG",
         "$env:SystemDrive\Windows\Logs\MoSetup\UpdateAgent.log\*",
         "$env:SystemDrive\Windows\SoftwareDistribution\PostRebootEventCache.V2\{323558A6-0300-4C3E-97A0-EDEDFEB96B00}.bin\*",
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Packages\Microsoft.Windows.Cortana_cw5n1h2txyewy\TempState\CortanaUnifiedTileModelCache.dat\*",
@@ -1519,7 +1512,6 @@ function Remove-TempFiles2 {
         "$env:SystemDrive\Windows\ServiceState\EventLog\Data\lastalive0.dat",
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Windows\UsrClass.dat.LOG1",
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Windows\UsrClass.dat.LOG1",
-        # "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Windows\UsrClass.dat", # CRITICAL: Do not delete user class registry hive
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Windows\INetCache\*",
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Windows\Safety\edge\remote\*",
         "$env:SystemDrive\Windows\WindowsUpdate.log",
@@ -1559,10 +1551,7 @@ function Remove-TempFiles2 {
 
     foreach (`$path in `$paths) {
         if (Test-Path `$path) {
-            # Attempt to take ownership and grant permissions
-            takeown /f `$path /r /d y | Out-Null
-            icacls `$path /grant administrators:F /t /q | Out-Null
-            Get-ChildItem -Path `$path -Recurse -Force -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
+            Remove-Item -Path `$path -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
 "@
