@@ -340,8 +340,6 @@ function Remove-All {
     $progressBar.PerformStep()
     Remove-Shadows -IsPartOfBatch 
     $progressBar.PerformStep()
-    Remove-WmiRepository -IsPartOfBatch 
-    $progressBar.PerformStep()
 
     # Phase 3: Driver & Hardware-Related Caches
     Show-Status "Phase 3: Cleaning Driver & Hardware Caches..."
