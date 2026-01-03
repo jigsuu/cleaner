@@ -299,7 +299,7 @@ function Remove-All {
     # --- Progress Bar Setup ---
     $progressBar.Visible = $true
     $progressBar.Value = 0
-    $progressBar.Maximum = 37 # Total number of steps in the Remove-All process
+    $progressBar.Maximum = 46 # Total number of steps in the Remove-All process
     
     Disable-Buttons
     Show-Status "Phase 0: Disabling Telemetry & Logging..."
@@ -325,6 +325,12 @@ function Remove-All {
     $progressBar.PerformStep()
     Remove-DiscordCache -IsPartOfBatch 
     $progressBar.PerformStep()
+    Remove-AnyDeskTraces -IsPartOfBatch
+    $progressBar.PerformStep()
+    Remove-NirSoftTraces -IsPartOfBatch
+    $progressBar.PerformStep()
+    Remove-OSForensicsLogs -IsPartOfBatch
+    $progressBar.PerformStep()
 
     # Phase 2: System File & OS Cache Cleanup
     Show-Status "Phase 2: Cleaning System Files & Caches..."
@@ -340,6 +346,14 @@ function Remove-All {
     $progressBar.PerformStep()
     Remove-Shadows -IsPartOfBatch 
     $progressBar.PerformStep()
+    Remove-SystemRestorePoints -IsPartOfBatch
+    $progressBar.PerformStep()
+    Remove-WindowsUpdateDB -IsPartOfBatch
+    $progressBar.PerformStep()
+    Remove-WindowsSearchDeep -IsPartOfBatch
+    $progressBar.PerformStep()
+    Remove-EtlLogs -IsPartOfBatch
+    $progressBar.PerformStep()
 
     # Phase 3: Driver & Hardware-Related Caches
     Show-Status "Phase 3: Cleaning Driver & Hardware Caches..."
@@ -349,12 +363,28 @@ function Remove-All {
     $progressBar.PerformStep()
     Remove-DirectXCache -IsPartOfBatch 
     $progressBar.PerformStep()
+    Remove-AllUsbHistory # No -IsPartOfBatch param, runs directly
+    Disable-Buttons # Re-disable buttons as the function enables them
+    $progressBar.PerformStep()
 
     # Phase 4: Registry, History & Forensic Traces
     Show-Status "Phase 4: Cleaning Registry & History..."
+    Remove-RegistryTraces # No -IsPartOfBatch param, runs directly
+    Disable-Buttons # Re-disable buttons as the function enables them
+    $progressBar.PerformStep()
     Remove-FormHistory -IsPartOfBatch
     $progressBar.PerformStep()
     Remove-XboxDeep -IsPartOfBatch
+    $progressBar.PerformStep()
+    Remove-ShimCache -IsPartOfBatch
+    $progressBar.PerformStep()
+    Remove-Amcache -IsPartOfBatch
+    $progressBar.PerformStep()
+    Remove-DefenderHistory -IsPartOfBatch
+    $progressBar.PerformStep()
+    Clear-RegistryTracking -IsPartOfBatch
+    $progressBar.PerformStep()
+    Remove-LastActivityDeep -IsPartOfBatch
     $progressBar.PerformStep()
 
     # Phase 5: Network, Memory & Power
@@ -368,6 +398,8 @@ function Remove-All {
     Flush-StandbyCache -IsPartOfBatch
     $progressBar.PerformStep()
     Remove-BamDamLogs -IsPartOfBatch
+    $progressBar.PerformStep()
+    Reset-AppRunTime -IsPartOfBatch
     $progressBar.PerformStep()
     Optimize-PowerAndSleep -IsPartOfBatch
     $progressBar.PerformStep()
@@ -1094,12 +1126,19 @@ function Remove-RegistryTraces {
         "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\VolatileNotifications\41C64E6DA3D39855",
         # --- General Forensic Paths ---
         "HKLM\SYSTEM\MountedDevices",
-        "HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\UserAssist\{5E6AB780-7743-11CF-A12B-00AA004AE837}",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\UserAssist\{75048700-EF1F-11D0-9888-006097DEACF9}",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\ComDlg32\OpenSavePidlMRU",
         "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\ComDlg32\OpenSaveMRU",
         "HKCU\Software\VideoLAN\VLC\mrulist",
+        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Map Network Drive MRU",
+        "HKLM\SOFTWARE\Microsoft\Windows Portable Devices\Devices",
+        "HKCU\Software\Microsoft\Windows\CurrentVersion\Applets\Paint\Recent File List",
+        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\BitBucket",
+        "HKLM\SYSTEM\CurrentControlSet\Control\DeviceClasses",
+        "HKLM\SOFTWARE\Microsoft\Windows Search\VolumeInfoCache",
+        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\TravelLog",
+        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\WordWheelQuery",
         # --- Enhanced Executed Files & Inventory Artifacts ---
         "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Compatibility Assistant\Store",
         "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Compatibility Assistant\Persisted",
@@ -1107,8 +1146,28 @@ function Remove-RegistryTraces {
         "HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Compatibility Assistant\Store",
         "HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers",
         "HKCU\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\ProgramTelemetry",
-        "HKU\S-1-5-21-2175535664-4285590767-3100322859-1000_Classes\Local Settings\Software\Microsoft\Windows\Shell\BagMRU",
-        "HKU\S-1-5-21-2175535664-4285590767-3100322859-1000_Classes\Local Settings\Software\Microsoft\Windows\Shell\MuiCache"
+        "HKCU\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Compatibility Assistant\Store",
+        "HKCU\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers",
+        "HKU\`${currentUserSid}_Classes\Local Settings\Software\Microsoft\Windows\Shell\BagMRU",
+        "HKU\`${currentUserSid}_Classes\Local Settings\Software\Microsoft\Windows\Shell\MuiCache",
+        "HKU\`${currentUserSid}_Classes\Local Settings\Software\Microsoft\Windows\Shell\Bags",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FeatureUsage\AppSwitched",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FeatureUsage\ShowJumpView",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FeatureUsage\AppLaunch",
+        "HKCU\Software\Microsoft\Windows\CurrentVersion\UFH\SHC",
+        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\UserAssist",
+        "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\AppCompatCache",
+        "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\AppCompatibility",
+        "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options",
+        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\RecentDocs",
+        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\ComDlg32\OpenSavePidlMRU",
+        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\ComDlg32\LastVisitedPidlMRU",
+        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\ComDlg32\CIDSizeMRU",
+        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StreamMRU",
+        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\TypedPaths",
+        "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\RunMRU",
+        "HKCU\Software\Microsoft\Windows\CurrentVersion\Search\RecentApps",
+        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Applications"
     )
 
     # Ensure HKU drive is mapped for the SYSTEM user context
@@ -1460,8 +1519,8 @@ function Remove-TempFiles2 {
         "$env:SystemDrive\Program Files\Epic Games\Fortnite\FortniteGame\PersistentDownloadDir\*",
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\FortniteGame\Saved\LMS\*",
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\FortniteGame\Saved\Cloud\*",
-        "$env:SystemDrive\Recovery\ntuser.sys\*",
-        "$env:SystemDrive\Users\Public\Libraries\collection.dat\*",
+        "$env:SystemDrive\Recovery\ntuser.sys",
+        "$env:SystemDrive\Users\Public\Libraries\collection.dat",
         "$env:SystemDrive\MSOCache\{71230000-00E2-0000-1000-00000000}\Setup.dat",
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Windows\WebCache\*",
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Feeds\*",
@@ -1500,7 +1559,7 @@ function Remove-TempFiles2 {
         "$env:SystemDrive\ProgramData\Microsoft\XboxLive\NSALCache\*",
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\PlaceholderTileLogoFolder\*",
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Temp\*",
-        "$env:SystemDrive\Program Files (x86)\Common Files\BattlEye\BEDaisy.sys\*",
+        "$env:SystemDrive\Program Files (x86)\Common Files\BattlEye\BEDaisy.sys",
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Google\Chrome\User Data\*",
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Packages\Microsoft.MicrosoftEdge_8wekyb3d8bbwe\AC\MicrosoftEdge\User\Default\Recovery\Active\*",
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Packages\Microsoft.MicrosoftEdge_8wekyb3d8bbwe\AC\#!002\MicrosoftEdge\User\Default\AppCache\*",
@@ -1509,14 +1568,14 @@ function Remove-TempFiles2 {
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\OneDrive\settings\Personal\logUploaderSettings_temp.ini",
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\OneDrive\settings\Personal\logUploaderSettings.ini",
         "$env:SystemDrive\Windows\System32\sru\*",
-        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\OneDrive\logs\Common\DeviceHealthSummaryConfiguration.ini\*",
-        "$env:SystemDrive\Windows\System32\config\systemprofile\AppData\Local\Microsoft\XboxLive\AuthStateCache.dat\*",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\OneDrive\logs\Common\DeviceHealthSummaryConfiguration.ini",
+        "$env:SystemDrive\Windows\System32\config\systemprofile\AppData\Local\Microsoft\XboxLive\AuthStateCache.dat",
         "$env:SystemDrive\Windows\Logs\MoSetup\UpdateAgent.log\*",
-        "$env:SystemDrive\Windows\SoftwareDistribution\PostRebootEventCache.V2\{323558A6-0300-4C3E-97A0-EDEDFEB96B00}.bin\*",
-        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Packages\Microsoft.Windows.Cortana_cw5n1h2txyewy\TempState\CortanaUnifiedTileModelCache.dat\*",
+        "$env:SystemDrive\Windows\SoftwareDistribution\PostRebootEventCache.V2\{323558A6-0300-4C3E-97A0-EDEDFEB96B00}.bin",
+        "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Packages\Microsoft.Windows.Cortana_cw5n1h2txyewy\TempState\CortanaUnifiedTileModelCache.dat",
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Microsoft\Windows\SettingSync\metastore\*",
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\Packages\Microsoft.Windows.Cortana_cw5n1h2txyewy\AppData\Indexed DB\*",
-        "$env:SystemDrive\Windows\System32\LogFiles\WMI\RtBackup\EtwRTGraphicsPerfMonitorSession.etl\*",
+        "$env:SystemDrive\Windows\System32\LogFiles\WMI\RtBackup\EtwRTGraphicsPerfMonitorSession.etl",
         "$env:SystemDrive\Users\$env:USERNAME\AppData\Local\NVIDIA Corporation\GfeSDK\*",
         "$env:SystemDrive\Windows\SoftwareDistribution\DataStore\Logs\*",
         "$env:SystemDrive\Windows\Logs\*",
@@ -2804,6 +2863,52 @@ function Remove-DirectXCache {
     }
 }
 
+function Remove-IconThumbCache {
+    param([switch]$IsPartOfBatch)
+    if (-not $IsPartOfBatch) { Disable-Buttons }
+    Show-Status "Cleaning Icon and Thumbnail caches for all users..."
+
+    # Stop Explorer to release locks on cache files
+    # This is aggressive but necessary for these specific files.
+    Stop-Process -Name "explorer" -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+
+    $usersDir = "$env:SystemDrive\Users"
+    if (Test-Path $usersDir) {
+        Get-ChildItem $usersDir -Directory | ForEach-Object {
+            $userPath = $_.FullName
+            
+            # Modern Windows (Vista+) Icon/Thumb Cache location
+            $explorerCachePath = Join-Path $userPath "AppData\Local\Microsoft\Windows\Explorer"
+            
+            # Legacy IconCache.db location
+            $legacyIconCache = Join-Path $userPath "AppData\Local\IconCache.db"
+
+            if (Test-Path $explorerCachePath) {
+                Show-Status "Cleaning caches for user: $($_.Name)"
+                Remove-Item -Path "$explorerCachePath\iconcache_*.db" -Force -ErrorAction SilentlyContinue
+                Remove-Item -Path "$explorerCachePath\thumbcache_*.db" -Force -ErrorAction SilentlyContinue
+            }
+
+            if (Test-Path $legacyIconCache) {
+                Remove-Item -Path $legacyIconCache -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+    
+    # Restart Explorer
+    if (-not (Get-Process -Name "explorer" -ErrorAction SilentlyContinue)) {
+        Start-Process "explorer.exe"
+    }
+
+    if (-not $IsPartOfBatch) {
+        $completionMessage = "Icon and Thumbnail caches cleaned for all users."
+        Show-Status $completionMessage "Green"
+        Show-CompletionDialog $completionMessage
+        Enable-Buttons
+    }
+}
+
 function Remove-CpuCaches {
     param([switch]$IsPartOfBatch)
     if (-not $IsPartOfBatch) { Disable-Buttons }
@@ -3613,7 +3718,8 @@ $buttons = @(
     @{ Name = 'Clean AnyDesk Traces'; Action = { Remove-AnyDeskTraces } },
     @{ Name = 'Clear Deleted Files'; Action = { Clear-DeletedFiles } },
     @{ Name = 'Deep Clean Windows DB'; Action = { Remove-WindowsUpdateDB } },
-    @{ Name = 'Clean .etl Logs'; Action = { Remove-EtlLogs } }
+    @{ Name = 'Clean .etl Logs'; Action = { Remove-EtlLogs } },
+    @{ Name = 'Clean Icon/Thumb Cache'; Action = { Remove-IconThumbCache } }
 );
  
 $i = 0
