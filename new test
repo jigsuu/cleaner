@@ -1091,7 +1091,7 @@ function Remove-RegistryTraces {
         "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Classes\discord-432980957394370572\shell",
         "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Classes\discord-432980957394370572\shell\open",
         "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Classes\discord-432980957394370572\shell\open\command",
-        ""HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\VolatileNotifications\41C64E6DA3D39855"
+        "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\VolatileNotifications\41C64E6DA3D39855",
         # --- General Forensic Paths ---
         "HKLM\SYSTEM\MountedDevices",
         "HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces",
@@ -1111,11 +1111,21 @@ function Remove-RegistryTraces {
         "HKU\S-1-5-21-2175535664-4285590767-3100322859-1000_Classes\Local Settings\Software\Microsoft\Windows\Shell\MuiCache"
     )
 
+    # Ensure HKU drive is mapped for the SYSTEM user context
+    if (-not (Get-PSDrive -Name HKU -ErrorAction SilentlyContinue)) {
+        New-PSDrive -Name HKU -PSProvider Registry -Root HKEY_USERS -ErrorAction SilentlyContinue | Out-Null
+    }
 
     foreach (`$templateKey in `$regKeys) {
-        # Replace HKCU with the current user's SID hive path
-        `$keyPath = `$templateKey.Replace('HKCU\', "HKU\`$currentUserSid\")
-        # Also replace the hardcoded SID from the provided lists with the current user's SID
+        `$keyPath = `$templateKey
+
+        # Convert standard registry paths to PowerShell drive paths (adding colons)
+        if (`$keyPath -match '^HKCU\\') { `$keyPath = `$keyPath -replace '^HKCU\\', "HKU:\`$currentUserSid\" }
+        elseif (`$keyPath -match '^HKLM\\') { `$keyPath = `$keyPath -replace '^HKLM\\', "HKLM:\" }
+        elseif (`$keyPath -match '^HKU\\') { `$keyPath = `$keyPath -replace '^HKU\\', "HKU:\" }
+        elseif (`$keyPath -match '^HKCR\\') { `$keyPath = `$keyPath -replace '^HKCR\\', "Registry::HKEY_CLASSES_ROOT\" }
+
+        # Replace any hardcoded SIDs with the current user's SID
         `$keyPath = `$keyPath.Replace('S-1-5-21-2532382528-581214834-2534474248-1001', `$currentUserSid)
         
         if (Test-Path -Path `$keyPath) {
