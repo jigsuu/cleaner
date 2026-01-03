@@ -1903,7 +1903,6 @@ function Remove-NvidiaCache {
     "$env:LOCALAPPDATA\NVIDIA Corporation\NVIDIA GeForce Experience\*",
     "$env:ProgramData\NVIDIA Corporation\NvTelemetry\*",
     "$env:ProgramData\NVIDIA Corporation\Drs\*",
-    "$env:LOCALAPPDATA\NVIDIA Corporation\NvContainer\*"
     )
     foreach ($loc in $locations) {
         Show-Status "Cleaning $loc"
