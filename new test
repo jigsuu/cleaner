@@ -27,6 +27,11 @@ try {
     [System.Windows.Forms.MessageBox]::Show("Failed to import a required module: $_. The script cannot continue.", "Import Error", "OK", "Error")
     exit 1
 }
+
+# Ensure WMI service is running to prevent "cannot connect to CIM server" errors
+if ((Get-Service -Name "winmgmt" -ErrorAction SilentlyContinue).Status -ne 'Running') {
+    Start-Service -Name "winmgmt" -Force -ErrorAction SilentlyContinue
+}
 #endregion Module Checks
 
 #region Password & License Checks
@@ -2158,6 +2163,8 @@ function Remove-WmiRepository {
     # Reset the repository
     Invoke-Command "winmgmt" "/resetrepository"
     
+    # Restart the service to ensure CIM/WMI calls work
+    Start-Service -Name "winmgmt" -ErrorAction SilentlyContinue
    
     
     $completionMessage = "WMI Repository has been reset."
