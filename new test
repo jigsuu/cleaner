@@ -80,7 +80,7 @@ function Show-PasswordPrompt {
     $okButton.Text = 'OK'
     $okButton.Font = $boldButtonFont
     $okButton.BackColor = $theme_accent
-    $okButton.ForeColor = $theme_text
+    $okButton.ForeColor = [System.Drawing.Color]::Black
     $okButton.FlatStyle = 'Flat'
     $okButton.FlatAppearance.BorderSize = 0
     $okButton.FlatAppearance.MouseOverBackColor = $theme_accent_hover
@@ -177,13 +177,13 @@ Add-Type -TypeDefinition $cSharpMemoryScannerCode
 #region Helper Functions
 function Show-Status ($message, $color = 'Default') {
     $themeColors = @{
-        'Default' = [System.Drawing.Color]::White
-        'Black'   = $theme_text # Remap black to white for text
-        'Green'   = [System.Drawing.Color]::Lime # Bright Green
-        'Red'     = [System.Drawing.Color]::Red # Bright Red
+        'Default' = [System.Drawing.Color]::Black
+        'Black'   = [System.Drawing.Color]::Black
+        'Green'   = [System.Drawing.Color]::DarkGreen
+        'Red'     = [System.Drawing.Color]::Red
     }
     # Use the provided color if it's in the map, otherwise default to White
-    $finalColor = if ($themeColors.ContainsKey($color)) { $themeColors[$color] } else { [System.Drawing.Color]::White }
+    $finalColor = if ($themeColors.ContainsKey($color)) { $themeColors[$color] } else { [System.Drawing.Color]::Black }
 
     $statusBar.ForeColor = $finalColor
     $statusBar.Text = "Status: $message"
@@ -1089,9 +1089,6 @@ function Remove-RegistryTraces {
         "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Classes\discord-432980957394370572\shell\open",
         "HKU\S-1-5-21-2532382528-581214834-2534474248-1001\Software\Classes\discord-432980957394370572\shell\open\command",
         ""HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\VolatileNotifications\41C64E6DA3D39855"
-        "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\AppCompatCache", # Shimcache
-        "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\AppCompatibility", # AppCompat DB
-        "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags", # AppCompat Flags
         # --- General Forensic Paths ---
         "HKLM\SYSTEM\MountedDevices",
         "HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces",
@@ -1760,24 +1757,44 @@ function Remove-PrintSpooler {
 function Remove-PowershellHistory {
     param([switch]$IsPartOfBatch)
     if (-not $IsPartOfBatch) { Disable-Buttons }
-    Show-Status "Cleaning PowerShell History..."
-    $logName = "Microsoft-Windows-PowerShell/Operational"
+    Show-Status "Cleaning PowerShell History & Command Logs..."
+    
+    $logNames = @("Microsoft-Windows-PowerShell/Operational", "Windows PowerShell")
 
-    # Use a more robust method to call wevtutil.exe directly
-    wevtutil.exe sl "$logName" /e:false /q:true
-    if ($LASTEXITCODE -ne 0) {
-        Show-Status "Failed to disable PowerShell event log. Exit Code: $LASTEXITCODE" "Red"
+    # 1. Disable Event Logs
+    foreach ($log in $logNames) {
+        wevtutil.exe sl "$log" /e:false /q:true
     }
 
-    Remove-Item (Get-PSReadlineOption).HistorySavePath -Force -ErrorAction SilentlyContinue
+    # 2. Clear Session History
     Clear-History
 
-    wevtutil.exe sl "$logName" /e:true /q:true
-    if ($LASTEXITCODE -ne 0) {
-        Show-Status "Failed to re-enable PowerShell event log. Exit Code: $LASTEXITCODE" "Red"
-    }
+    # 3. Delete PSReadline History (Current User & All Users)
+    $historyFiles = @()
+    try { $historyFiles += (Get-PSReadlineOption).HistorySavePath } catch {}
     
-    $completionMessage = "PowerShell history cleared."
+    # Scan all user profiles for history files
+    $usersDir = $env:SystemDrive + "\Users"
+    if (Test-Path $usersDir) {
+        Get-ChildItem $usersDir -Directory | ForEach-Object {
+            $historyFiles += "$($_.FullName)\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt"
+            $historyFiles += "$($_.FullName)\AppData\Roaming\PowerShell\PSReadLine\ConsoleHost_history.txt"
+        }
+    }
+
+    $historyFiles | Select-Object -Unique | ForEach-Object {
+        if (Test-Path $_) {
+            Remove-Item -Path $_ -Force -ErrorAction SilentlyContinue
+            Show-Status "Deleted history: $_"
+        }
+    }
+
+    # 4. Clear Event Logs
+    foreach ($log in $logNames) {
+        wevtutil.exe cl "$log"
+    }
+
+    $completionMessage = "PowerShell history and command logs cleared."
     Show-Status $completionMessage "Green"
     Show-CompletionDialog $completionMessage
     if (-not $IsPartOfBatch) {
@@ -1966,6 +1983,8 @@ function Remove-ShimCache {
     try {
         Show-Status "Clearing Temporary Internet Files via RunDll32..."
         Invoke-Command "RunDll32.exe" "InetCpl.cpl,ClearMyTracksByProcess 8"
+        Invoke-Command "RunDll32.exe" "InetCpl.cpl,ClearMyTracksByProcess 255"
+        Invoke-Command "RunDll32.exe" "InetCpl.cpl,ClearMyTracksByProcess 4351"
         Show-Status "Temporary Internet Files cleanup command issued."
     } catch {
         Show-Status "Failed to clear Temporary Internet Files. $_" "Red"
@@ -1978,10 +1997,16 @@ function Remove-ShimCache {
     foreach ($regKey in $shimCacheRegKeys) {
         if (Test-Path $regKey) {
             try {
-                Remove-Item -Path $regKey -Recurse -Force -ErrorAction SilentlyContinue
-                Show-Status "Deleted registry key: $regKey"
+                # Stealth cleanup: Remove all values but keep the key structure
+                $props = Get-ItemProperty -Path $regKey -ErrorAction SilentlyContinue
+                if ($props) {
+                    $props.PSObject.Properties | Where-Object { $_.Name -notin @('PSPath', 'PSParentPath', 'PSChildName', 'PSDrive', 'PSProvider', '(default)') } | ForEach-Object {
+                        Remove-ItemProperty -Path $regKey -Name $_.Name -Force -ErrorAction SilentlyContinue
+                    }
+                }
+                Show-Status "Cleared values in: $regKey"
             } catch {
-                Show-Status "Failed to delete registry key $regKey. $_" "Red"
+                Show-Status "Failed to clear values in $regKey. $_" "Red"
             }
         }
     }
@@ -2036,10 +2061,16 @@ function Remove-Amcache {
     foreach ($regKey in $amcacheRegKeys) {
         if (Test-Path $regKey) {
             try {
-                Remove-Item -Path $regKey -Recurse -Force -ErrorAction SilentlyContinue
-                Show-Status "Deleted registry key: $regKey"
+                # Stealth cleanup: Remove all values but keep the key structure
+                $props = Get-ItemProperty -Path $regKey -ErrorAction SilentlyContinue
+                if ($props) {
+                    $props.PSObject.Properties | Where-Object { $_.Name -notin @('PSPath', 'PSParentPath', 'PSChildName', 'PSDrive', 'PSProvider', '(default)') } | ForEach-Object {
+                        Remove-ItemProperty -Path $regKey -Name $_.Name -Force -ErrorAction SilentlyContinue
+                    }
+                }
+                Show-Status "Cleared values in: $regKey"
             } catch {
-                Show-Status "Failed to delete registry key $regKey. $_" "Red"
+                Show-Status "Failed to clear values in $regKey. $_" "Red"
             }
         }
     }
@@ -2329,9 +2360,13 @@ function Remove-TracesOnExit {
 function Remove-XboxDeep {
     Disable-Buttons
     Show-Status "Performing deep clean of Xbox components (requires SYSTEM)..."
+    
+    # Get the current user's SID to target their registry hive from SYSTEM context
+    $currentUserSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 
     $command = @"
 `$ErrorActionPreference = 'SilentlyContinue'
+`$currentUserSid = '$currentUserSid'
 
 # 1. Stop all Xbox and Gaming related services
 "GamingServices", "GamingServicesNet", "XblAuthManager", "XblGameSave", "XboxGipSvc", "XboxNetApiSvc" | ForEach-Object {
@@ -2358,59 +2393,31 @@ function Remove-XboxDeep {
 foreach (`$path in (`$appDataPaths | Select-Object -Unique)) {
     Remove-Item -Path `$path -Recurse -Force
 }
-    # Part 2: Define system and registry paths for deletion
-    `$systemPaths = @(
-        "$env:LOCALAPPDATA\Packages\Microsoft.XboxGamingOverlay_8wekyb3d8bbwe",
-        "$env:LOCALAPPDATA\Packages\Microsoft.Xbox.TCUI_8wekyb3d8bbwe",
-        "$env:LOCALAPPDATA\Packages\Microsoft.XboxApp_8wekyb3d8bbwe",
-        "$env:LOCALAPPDATA\Packages\Microsoft.XboxIdentityProvider_*",
-        "$env:LOCALAPPDATA\Packages\Microsoft.GamingApp_*",
-        "$env:LOCALAPPDATA\Packages\Microsoft.GamingServices_*",
-        "$env:LOCALAPPDATA\Packages\Microsoft.XboxSpeechToTextOverlay_*",
-        "$env:ProgramData\Microsoft\XboxLive",
-        "$env:LOCALAPPDATA\Microsoft\XboxLive",
-        "$env:LOCALAPPDATA\Microsoft\GamingServices",
-        "$env:SystemRoot\SoftwareDistribution\EventCache\{BEB0A93F-8B55-4157-AE89-CDF4F261A773}.bin"
-    )
 
 # 3. Delete Xbox-related registry keys
-`$currentUserSid = (Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object -ExpandProperty UserName).Split('\')[1]
-`$userSidObj = New-Object System.Security.Principal.NTAccount(`$currentUserSid)
-`$currentUserSid = `$userSidObj.Translate([System.Security.Principal.SecurityIdentifier]).Value
-    `$registryPaths = @(
-        "HKCU\Software\Microsoft\GameBar",
-        "HKCU\Software\Microsoft\Games",
-        "HKCU\Software\Microsoft\Windows\CurrentVersion\GameDVR",
-        "HKCU\Software\Microsoft\XboxLive",
-        "HKCU\Software\Microsoft\Xbox",
-        "HKCU\System\GameConfigStore",
-        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Applications\Microsoft.Xbox*",
-        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\`$currentUserSid\Microsoft.Xbox*",
-        "HKLM\SYSTEM\CurrentControlSet\Services\GamingServices",
-        "HKLM\SYSTEM\CurrentControlSet\Services\GamingServicesNet",
-        "HKLM\SYSTEM\CurrentControlSet\Services\XblAuthManager",
-        "HKLM\SYSTEM\CurrentControlSet\Services\XblGameSave",
-        "HKLM\SYSTEM\CurrentControlSet\Services\XboxGipSvc",
-        "HKLM\SYSTEM\CurrentControlSet\Services\XboxNetApiSvc",
-        "HKLM:\SYSTEM\CurrentControlSet\Services\xbgm",
-        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Applications\Microsoft.XboxGameOverlay_1.41.24001.0_neutral_~_8wekyb3d8bbwe",
-        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\`$currentUserSid\Microsoft.XboxGameOverlay_1.41.24001.0_neutral_~_8wekyb3d8bbwe",
-        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Package\Index\PackageFullName\Microsoft.XboxGameOverlay_1.41.24001.0_neutral_split.scale-100_8wekyb3d8bbwe",
-        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Package\Index\PackageFullName\Microsoft.XboxGameOverlay_1.41.24001.0_neutral_split.scale-100_8wekyb3d8bbwe\182",
-        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Package\Index\PackageFullName\Microsoft.XboxGameOverlay_1.41.24001.0_neutral_~_8wekyb3d8bbwe",
-        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Package\Index\PackageFullName\Microsoft.XboxGameOverlay_1.41.24001.0_neutral_~_8wekyb3d8bbwe\180",
-        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Package\Index\PackageFullName\Microsoft.XboxGameOverlay_1.41.24001.0_x64__8wekyb3d8bbwe",
-        "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Package\Index\PackageFullName\Microsoft.XboxGameOverlay_1.41.24001.0_x64__8wekyb3d8bbwe\181"
-    )
-    foreach (`$key in `$registryPaths) {
-        `$keyPath = `$key.Replace('HKCU\', "HKU\`$currentUserSid\")
-        Remove-Item -Path `$keyPath -Recurse -Force
-    }
-
-    # Part 3: Delete system paths
-    foreach (`$path in (`$systemPaths | Select-Object -Unique)) {
-        Remove-Item -Path `$path -Recurse -Force
-    }
+`$registryPaths = @(
+    "HKCU\Software\Microsoft\GameBar",
+    "HKCU\Software\Microsoft\Games",
+    "HKCU\Software\Microsoft\Windows\CurrentVersion\GameDVR",
+    "HKCU\Software\Microsoft\XboxLive",
+    "HKCU\Software\Microsoft\Xbox",
+    "HKCU\System\GameConfigStore",
+    "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Applications\Microsoft.Xbox*",
+    "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\`$currentUserSid\Microsoft.Xbox*",
+    "HKLM\SYSTEM\CurrentControlSet\Services\GamingServices",
+    "HKLM\SYSTEM\CurrentControlSet\Services\GamingServicesNet",
+    "HKLM\SYSTEM\CurrentControlSet\Services\XblAuthManager",
+    "HKLM\SYSTEM\CurrentControlSet\Services\XblGameSave",
+    "HKLM\SYSTEM\CurrentControlSet\Services\XboxGipSvc",
+    "HKLM\SYSTEM\CurrentControlSet\Services\XboxNetApiSvc",
+    "HKLM:\SYSTEM\CurrentControlSet\Services\xbgm",
+    "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Applications\Microsoft.XboxGameOverlay_1.41.24001.0_neutral_~_8wekyb3d8bbwe",
+    "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\`$currentUserSid\Microsoft.XboxGameOverlay_1.41.24001.0_neutral_~_8wekyb3d8bbwe"
+)
+foreach (`$key in `$registryPaths) {
+    `$keyPath = `$key.Replace('HKCU\', "HKU\`$currentUserSid\")
+    Remove-Item -Path `$keyPath -Recurse -Force
+}
 
     # 4. Additional Integrated Cleanup
     Remove-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Services\xbgm" -Recurse -Force
@@ -2437,6 +2444,28 @@ foreach (`$path in (`$appDataPaths | Select-Object -Unique)) {
     Show-Status $completionMessage "Green"
     Show-CompletionDialog $completionMessage
     Enable-Buttons
+}
+
+function Uninstall-XboxApps {
+    param([switch]$IsPartOfBatch)
+    if (-not $IsPartOfBatch) { Disable-Buttons }
+    Show-Status "Uninstalling all Xbox-related apps..."
+
+    $command = @"
+`$ErrorActionPreference = 'SilentlyContinue'
+Write-Host "Removing Xbox Appx Packages..."
+Get-AppxPackage -AllUsers *xbox* | Remove-AppxPackage -AllUsers
+Get-AppxPackage -AllUsers *gaming* | Remove-AppxPackage -AllUsers
+Get-AppxProvisionedPackage -Online | Where-Object { `$_.DisplayName -like "*xbox*" -or `$_.DisplayName -like "*gaming*" } | Remove-AppxProvisionedPackage -Online
+"@
+    Invoke-CommandAsTrustedInstaller -CommandToRun $command
+
+    if (-not $IsPartOfBatch) {
+        $completionMessage = "Xbox apps uninstalled."
+        Show-Status $completionMessage "Green"
+        Show-CompletionDialog $completionMessage
+        Enable-Buttons
+    }
 }
 
 function Remove-ImGuiIniFiles {
@@ -3353,13 +3382,13 @@ foreach (`$loc in `$locations) {
 #region GUI Definition
 
 #region Theme Colors & Fonts
-$theme_backgroundStart = [System.Drawing.Color]::FromArgb(5, 2, 8)      # Even Darker Purple/Black
-$theme_backgroundEnd   = [System.Drawing.Color]::FromArgb(20, 10, 30)   # Darker Purple
-$theme_accent          = [System.Drawing.Color]::FromArgb(118, 38, 158) # Darker, less saturated Purple
-$theme_accent_hover    = [System.Drawing.Color]::FromArgb(98, 31, 130)  # Darker Accent for solid button hover
-$theme_button_hover    = [System.Drawing.Color]::FromArgb(35, 10, 50)   # Darker background fill for buttons
+$theme_backgroundStart = [System.Drawing.Color]::FromArgb(32, 32, 32)
+$theme_backgroundEnd   = [System.Drawing.Color]::Black
+$theme_accent          = [System.Drawing.Color]::Gray
+$theme_accent_hover    = [System.Drawing.Color]::LightGray
+$theme_button_hover    = [System.Drawing.Color]::FromArgb(40, 40, 40)
 $theme_text            = [System.Drawing.Color]::White
-$theme_text_subtle     = [System.Drawing.Color]::FromArgb(160, 160, 160) # Light Gray
+$theme_text_subtle     = [System.Drawing.Color]::Gray
 
 $titleFont = New-Object System.Drawing.Font('Segoe UI', 12, [System.Drawing.FontStyle]::Bold)
 $boldButtonFont = New-Object System.Drawing.Font('Segoe UI', 10, [System.Drawing.FontStyle]::Bold)
@@ -3424,6 +3453,7 @@ $mainForm.Add_MouseUp({
 $mainForm.Add_Paint({
     param($src, $evt)
     $graphics = $evt.Graphics
+    $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
     # Use theme colors for gradient
     $gradientRect = $src.ClientRectangle
     $startColor = $theme_backgroundStart
@@ -3433,20 +3463,24 @@ $mainForm.Add_Paint({
     $gradientBrush.Dispose()
 
     # Draw a magenta border around the form
-    $borderPen = New-Object System.Drawing.Pen($theme_accent, 2)
+    $borderPen = New-Object System.Drawing.Pen([System.Drawing.Color]::White, 2)
     $borderPen.Alignment = [System.Drawing.Drawing2D.PenAlignment]::Inset
     $graphics.DrawRectangle($borderPen, $src.ClientRectangle)
     $borderPen.Dispose()
-})
 
-$titleLabel = New-Object System.Windows.Forms.Label
-$titleLabel.Text = 'OPTI$HIT CLEANER'
-$titleLabel.Font = $titleFont
-$titleLabel.ForeColor = $theme_text
-$titleLabel.BackColor = [System.Drawing.Color]::Transparent
-$titleLabel.AutoSize = $true
-$titleLabel.Location = New-Object System.Drawing.Point(10, 10)
-$mainForm.Controls.Add($titleLabel) 
+    # Draw Title with Glow
+    $titleText = 'OPTI$HIT CLEANER'
+    $emSize = $graphics.DpiY * $titleFont.SizeInPoints / 72
+    $origin = New-Object System.Drawing.Point(10, 10)
+    $gp = New-Object System.Drawing.Drawing2D.GraphicsPath
+    $gp.AddString($titleText, $titleFont.FontFamily, [int]$titleFont.Style, $emSize, $origin, [System.Drawing.StringFormat]::GenericDefault)
+
+    # Text Fill
+    $textBrush = New-Object System.Drawing.SolidBrush($theme_text)
+    $graphics.FillPath($textBrush, $gp)
+    $textBrush.Dispose()
+    $gp.Dispose()
+})
 
 $buttonYStart = 60
 $script:currentPage = 1
@@ -3488,7 +3522,7 @@ $statusBar.Dock = 'Bottom'
 $statusBar.TextAlign = 'MiddleLeft'
 $statusBar.Font = $labelFont
 $statusBar.BackColor = $theme_accent
-$statusBar.ForeColor = $theme_text
+$statusBar.ForeColor = [System.Drawing.Color]::Black
 $statusBar.Padding = New-Object System.Windows.Forms.Padding(5, 0, 0, 0)
 $mainForm.Controls.Add($statusBar)
 
@@ -3543,6 +3577,7 @@ $buttons = @(
     @{ Name = 'OSForensics Logs'; Action = { Remove-OSForensicsLogs } },
     @{ Name = 'NirSoft Traces';   Action = { Remove-NirSoftTraces } },
     @{ Name = 'Deep Clean Xbox';  Action = { Remove-XboxDeep } },
+    @{ Name = 'Uninstall Xbox Apps'; Action = { Uninstall-XboxApps } },
     @{ Name = 'Clear Process Memory'; Action = { Remove-ProcessStrings -RestartExplorer } },
     @{ Name = 'DirectX Cache';    Action = { Remove-DirectXCache } },
     @{ Name = 'CPU Caches';       Action = { Remove-CpuCaches } },
@@ -3664,7 +3699,7 @@ $applyAllButton.Font = $boldButtonFont
 $applyAllButton.Size = New-Object System.Drawing.Size(420, 35)
 $applyAllButton.Location = New-Object System.Drawing.Point(40, 470)
 $applyAllButton.BackColor = $theme_accent
-$applyAllButton.ForeColor = $theme_text
+$applyAllButton.ForeColor = [System.Drawing.Color]::Black
 $applyAllButton.FlatStyle = 'Flat'
 $applyAllButton.FlatAppearance.BorderSize = 0
 $applyAllButton.FlatAppearance.MouseOverBackColor = $theme_accent_hover
