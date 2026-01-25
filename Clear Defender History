@@ -1,17 +1,3 @@
-<#
-.SYNOPSIS
-    DEFENDER_HISTORY_NUKE.ps1 - Complete threat history annihilation
-.DESCRIPTION
-    Surgical removal of ALL Windows Defender threat artifacts:
-    - Event logs (including backup .evtx files)
-    - WMI permanent storage instances
-    - SecurityHealthService database
-    - Windows Security App cache
-    - Windows Error Reporting (WER) traces
-.NOTES
-    Shadow Mode: Maximum destruction
-    Persistence: Zero forensic recovery
-#>
 
 # ------------------------------------------------------------
 # 0. SHADOW BOOTSTRAP
