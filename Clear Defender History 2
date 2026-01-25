@@ -30,10 +30,10 @@ $securityServices = @(
 )
 
 foreach ($service in $securityServices) {
-    Get-Service -Name $service -ErrorAction SilentlyContinue | Stop-Service -Force -NoWait
+    Get-Service -Name $service -ErrorAction SilentlyContinue | Stop-Service -Force -NoWait -ErrorAction SilentlyContinue
     Set-Service -Name $service -StartupType Disabled -ErrorAction SilentlyContinue
     # Prevent immediate restart
-    sc.exe config $service start= disabled 2>$null
+    sc.exe config $service start= disabled >$null 2>&1
 }
 
 # ------------------------------------------------------------
