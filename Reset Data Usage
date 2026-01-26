@@ -192,8 +192,6 @@ if (-not (Test-StealthConditions)) {
     Write-Host "[!] Stealth conditions not met. Exiting." -ForegroundColor Yellow
     exit 2
 }
-
-Write-Host "[*] SHΔDØW CORE :: DataUsage Mirage Initializing..." -ForegroundColor DarkGray
 Write-Host "[+] Phase 1: RECON" -ForegroundColor Cyan
 $snapshot = Get-DataUsageSnapshot
 Start-Sleep -Seconds 1
