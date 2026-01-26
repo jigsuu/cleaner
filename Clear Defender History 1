@@ -1,6 +1,3 @@
-# ------------------------------------------------------------
-# 0. Force Admin Elevation + Stealth Mode
-# ------------------------------------------------------------
 param([switch]$ForceAdmin, [switch]$Silent)
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
     if ($ForceAdmin -and $PSCommandPath) {
@@ -16,9 +13,6 @@ if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 
 if (-not $Silent) { Write-Host "[*] SHADOW CORE: Defender Total Purge Initiated" -ForegroundColor Cyan }
 
-# ------------------------------------------------------------
-# 1. Stop & Disable Tamper Protection (if Windows 10/11)
-# ------------------------------------------------------------
 if (-not $Silent) { Write-Host "[*] Disabling Tamper Protection..." -ForegroundColor Cyan }
 $tamperKey = "HKLM:\SOFTWARE\Microsoft\Windows Defender\Features"
 if (Test-Path $tamperKey) {
@@ -35,9 +29,6 @@ foreach ($service in $defenderServices) {
     }
 }
 
-# ------------------------------------------------------------
-# 2. NUKE .DAT & BINARY CACHES (FIXED NULL PATH HANDLING)
-# ------------------------------------------------------------
 if (-not $Silent) { Write-Host "[*] Hunting and destroying .dat/.vdm/.vdl/.bin files..." -ForegroundColor Cyan }
 $datPatterns = @("*.dat", "*.vdm", "*.vdl", "*.bin", "*.db", "*.db-wal", "*.db-shm", "*.cache", "*.log")
 $defenderDirs = @(
@@ -70,9 +61,6 @@ foreach ($dir in $defenderDirs) {
     }
 }
 
-# ------------------------------------------------------------
-# 3. WIPE DataStore & MpEngine Persistent Files
-# ------------------------------------------------------------
 if (-not $Silent) { Write-Host "[*] Purging MpEngine DataStore..." -ForegroundColor Cyan }
 $mpEnginePaths = @(
     "$env:ProgramData\Microsoft\Windows Defender\Platform\*\DataStore",
@@ -109,17 +97,11 @@ foreach ($file in $criticalDatFiles) {
     }
 }
 
-# ------------------------------------------------------------
-# 4. Purge Threat History via WMI
-# ------------------------------------------------------------
 if (-not $Silent) { Write-Host "[*] Clearing WMI threat objects..." -ForegroundColor Cyan }
 Get-WmiObject -Namespace "root\Microsoft\Windows\Defender" -Class "MSFT_MpThreat" | Remove-WmiObject -ErrorAction SilentlyContinue
 Get-WmiObject -Namespace "root\Microsoft\Windows\Defender" -Class "MSFT_MpThreatDetection" | Remove-WmiObject -ErrorAction SilentlyContinue
 Get-WmiObject -Namespace "root\Microsoft\Windows\Defender" -Class "MSFT_MpScan" | Remove-WmiObject -ErrorAction SilentlyContinue
 
-# ------------------------------------------------------------
-# 5. Delete Quarantine & History Folders (Recursive)
-# ------------------------------------------------------------
 if (-not $Silent) { Write-Host "[*] Obliterating quarantine and history..." -ForegroundColor Cyan }
 $paths = @(
     "$env:ProgramData\Microsoft\Windows Defender\Quarantine",
@@ -139,9 +121,6 @@ foreach ($path in $paths) {
     }
 }
 
-# ------------------------------------------------------------
-# 6. Clear Registry Artifacts
-# ------------------------------------------------------------
 if (-not $Silent) { Write-Host "[*] Scrubbing registry..." -ForegroundColor Cyan }
 $regPaths = @(
     "HKLM:\SOFTWARE\Microsoft\Windows Defender\Threats",
@@ -160,9 +139,7 @@ foreach ($reg in $regPaths) {
     }
 }
 
-# ------------------------------------------------------------
-# 7. Use MpCmdRun to Reset Signatures & Reporting
-# ------------------------------------------------------------
+
 $mpcmd = "$env:ProgramFiles\Windows Defender\MpCmdRun.exe"
 if (Test-Path $mpcmd) {
     if (-not $Silent) { Write-Host "[*] Forcing Defender cache reset via MpCmdRun..." -ForegroundColor Cyan }
@@ -171,18 +148,12 @@ if (Test-Path $mpcmd) {
     Start-Process -FilePath $mpcmd -ArgumentList "-RestoreDefaults" -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue
 }
 
-# ------------------------------------------------------------
-# 8. Reset Event Logs
-# ------------------------------------------------------------
 if (-not $Silent) { Write-Host "[*] Purging event logs..." -ForegroundColor Cyan }
 $logs = @("Microsoft-Windows-Windows Defender/Operational", "Microsoft-Windows-Windows Defender/WHC", "Microsoft-Windows-Windows Defender/ThreatTrack")
 foreach ($log in $logs) {
     wevtutil.exe clear-log $log 2>$null
 }
 
-# ------------------------------------------------------------
-# 9. Restart Services & Re-enable Protection
-# ------------------------------------------------------------
 if (-not $Silent) { Write-Host "[*] Restarting services..." -ForegroundColor Cyan }
 foreach ($service in $defenderServices) {
     if (Get-Service -Name $service -ErrorAction SilentlyContinue) {
@@ -196,9 +167,7 @@ if (Test-Path $tamperKey) {
     Set-ItemProperty -Path $tamperKey -Name "TamperProtection" -Value 4 -Force -ErrorAction SilentlyContinue
 }
 
-# ------------------------------------------------------------
-# 10. Final Verification
-# ------------------------------------------------------------
+
 if (-not $Silent) {
     Write-Host "`n[✓] TOTAL PURGE COMPLETE." -ForegroundColor Green
     Write-Host "  - .DAT/.VDM/.VDL/.BIN files: Annihilated" -ForegroundColor Gray
